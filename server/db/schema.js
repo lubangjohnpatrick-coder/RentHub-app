@@ -5,7 +5,7 @@ const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, '..', 'data');
 const DB_PATH = path.join(DATA_DIR, 'renthub.db');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
