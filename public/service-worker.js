@@ -1,9 +1,11 @@
-/* RentHub service worker - PWA */
-const CACHE = 'renthub-v1';
+/* GoRentHive service worker - PWA */
+const CACHE = 'gorenthive-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/css/styles.css',
+  '/js/vendor/supabase.js',
+  '/js/supabase-config.js',
   '/js/api.js',
   '/js/app.js',
   '/manifest.webmanifest',
@@ -36,7 +38,7 @@ self.addEventListener('fetch', (e) => {
 
 self.addEventListener('push', (e) => {
   const data = e.data ? e.data.json() : {};
-  e.waitUntil(self.registration.showNotification(data.title || 'RentHub', {
+  e.waitUntil(self.registration.showNotification(data.title || 'GoRentHive', {
     body: data.body || 'New update',
     icon: '/icons/icon-192.png',
     data: { url: data.url || '/' },

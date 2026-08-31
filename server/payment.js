@@ -1,35 +1,26 @@
 'use strict';
 
-// Provider-agnostic payment architecture.
-// A real provider (GCash, Maya, Stripe) can be plugged in by implementing the
-// PaymentProvider interface and setting gateway.provider = <that provider>.
-// The rest of the system never touches provider internals.
+// Provider-agnostic payment gateway (server only, Supabase-backed).
+// Providers implement: { name, charge(), refund(), releaseHold() }.
+// Default: sandbox. Set GATEWAY=gcash (+ GCASH_CLIENT_ID/GCASH_SECRET) in
+// server/.env to use the real GCash integration path.
 
-const db = require('./db/schema');
-const ledger = require('./ledger');
-
-// ---------- Provider interface ----------
-// {
-//   name: 'sandbox' | 'gcash' | 'maya' | 'stripe',
-//   charge(payment) -> { status: 'succeeded', provider_ref }
-//   refund(payment) -> { status: 'refunded' }
-//   releaseHold(payment) -> ...
-// }
+const crypto = require('crypto');
+const { svcClient } = require('./supabase');
 
 const SandboxProvider = {
   name: 'sandbox',
   async charge(payment) {
-    // Simulates capturing a payment from the renter's chosen method.
     await sleep(60);
-    return { status: 'succeeded', provider_ref: 'SB-' + Math.random().toString(36).slice(2, 10).toUpperCase() };
+    return { status: 'succeeded', provider_ref: 'SB-' + crypto.randomBytes(5).toString('hex').toUpperCase() };
   },
   async refund(payment) {
     await sleep(40);
-    return { status: 'refunded', provider_ref: 'SBR-' + Math.random().toString(36).slice(2, 8).toUpperCase() };
+    return { status: 'refunded', provider_ref: 'SBR-' + crypto.randomBytes(4).toString('hex').toUpperCase() };
   },
   async releaseHold(payment) {
     await sleep(30);
-    return { status: 'released', provider_ref: 'SBH-' + Math.random().toString(36).slice(2, 8).toUpperCase() };
+    return { status: 'released', provider_ref: 'SBH-' + crypto.randomBytes(4).toString('hex').toUpperCase() };
   },
 };
 
@@ -39,9 +30,16 @@ function sleep(ms) {
 
 class Gateway {
   constructor() {
-    this.provider = SandboxProvider; // swap this to plug in GCash/Maya/Stripe
+    this.provider = this._pick();
   }
-
+  _pick() {
+    const name = (process.env.GATEWAY || 'sandbox').toLowerCase();
+    if (name === 'gcash') {
+      const { GcashProvider } = require('./providers/gcash');
+      return GcashProvider;
+    }
+    return SandboxProvider;
+  }
   async charge(payment) {
     return this.provider.charge(payment);
   }
@@ -55,26 +53,38 @@ class Gateway {
 
 const gateway = new Gateway();
 
-// Record a payment row and update its status
-function createPayment({ userId, bookingId, type, grossAmount, platformFee = 0, method, meta = {} }) {
-  const ref = ledger.makePaymentRef(type.slice(0, 4).toUpperCase());
+async function createPayment({ userId, bookingId, type, grossAmount, platformFee = 0, method, meta = {} }) {
+  const ref = 'PAY-' + crypto.randomBytes(4).toString('hex').toUpperCase();
   const netAmount = grossAmount - platformFee;
-  db.prepare(
-    `INSERT INTO payments (payment_ref, user_id, booking_id, type, method, status, gross_amount, platform_fee, net_amount, meta, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-  ).run(ref, userId, bookingId || null, type, method, 'pending', grossAmount, platformFee, netAmount, JSON.stringify(meta), Date.now(), Date.now());
-  const row = db.prepare('SELECT * FROM payments WHERE payment_ref=?').get(ref);
-  return row;
+  const now = Date.now();
+  const { data, error } = await svcClient()
+    .from('payments')
+    .insert({
+      payment_ref: ref, user_id: userId, booking_id: bookingId || null, type,
+      method: method || gateway.provider.name, status: 'pending',
+      gross_amount: grossAmount, platform_fee: platformFee, net_amount: netAmount,
+      meta: JSON.stringify(meta), created_at: now, updated_at: now,
+    })
+    .select()
+    .single();
+  if (error) throw new Error('createPayment: ' + error.message);
+  return data;
 }
 
 async function executeCharge(payment) {
   const res = await gateway.charge(payment);
-  const status = res.status;
-  db.prepare('UPDATE payments SET status=?, updated_at=? WHERE id=?').run(status, Date.now(), payment.id);
-  if (status === 'succeeded') {
-    // Money received; credit the relevant party as appropriate by caller
-  }
-  return { ...payment, status, provider_ref: res.provider_ref };
+  await svcClient().from('payments')
+    .update({ status: res.status, updated_at: Date.now() })
+    .eq('id', payment.id);
+  return { ...payment, status: res.status, provider_ref: res.provider_ref, authorization_url: res.authorization_url };
 }
 
-module.exports = { gateway, createPayment, executeCharge };
+async function getPayment(paymentRef) {
+  const { data, error } = await svcClient()
+    .from('payments').select('*').eq('payment_ref', paymentRef).limit(1).maybeSingle();
+  if (error || !data) return null;
+  try { data.meta = JSON.parse(data.meta || '{}'); } catch (e) { data.meta = {}; }
+  return data;
+}
+
+module.exports = { gateway, createPayment, executeCharge, getPayment, SandboxProvider };

@@ -15,7 +15,7 @@ const BASE = 'http://localhost:4000';
   // login as renter
   await page.goto(BASE + '/#/login', { waitUntil: 'networkidle0' });
   await new Promise((r) => setTimeout(r, 700));
-  await page.type('#a-email', 'mia@renthub.ph');
+  await page.type('#a-email', 'mia@gorenthive.online');
   await page.type('#a-pass', 'renter123');
   await page.evaluate(() => Root.doAuth('login'));
   await new Promise((r) => setTimeout(r, 1500));

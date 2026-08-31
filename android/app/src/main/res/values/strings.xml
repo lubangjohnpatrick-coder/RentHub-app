@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">RentHub</string>
-    <string name="title_activity_main">RentHub</string>
-    <string name="package_name">com.renthub.app</string>
-    <string name="custom_url_scheme">com.renthub.app</string>
+    <string name="app_name">GoRentHive</string>
+    <string name="title_activity_main">GoRentHive</string>
+    <string name="package_name">com.gorenthive.app</string>
+    <string name="custom_url_scheme">com.gorenthive.app</string>
 </resources>

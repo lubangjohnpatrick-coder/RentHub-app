@@ -87,7 +87,7 @@ router.post('/listings/:id', (req, res) => {
   if (status) db.prepare('UPDATE listings SET status=? WHERE id=?').run(status, l.id);
   if (featured !== undefined) db.prepare('UPDATE listings SET featured=? WHERE id=?').run(featured ? 1 : 0, l.id);
   log(req, 'listing_update', JSON.stringify({ id: l.id, status, featured }));
-  notify(l.owner_id, 'listing_update', 'Listing updated by admin', `Your listing "${l.title}" was ${status || 'updated'} by RentHub`, `/listings`);
+  notify(l.owner_id, 'listing_update', 'Listing updated by admin', `Your listing "${l.title}" was ${status || 'updated'} by GoRentHive`, `/listings`);
   res.json({ ok: true });
 });
 

@@ -75,7 +75,7 @@ router.post('/', requireAuth, (req, res) => {
     ).get(req.user.id, receiver_id, receiver_id, req.user.id);
     if (!confirmed) {
       return res.status(400).json({
-        error: 'Payments and contact details must stay inside RentHub until a booking is confirmed. Do not share phone numbers, payment apps or social handles before confirming your rental in-app.',
+        error: 'Payments and contact details must stay inside GoRentHive until a booking is confirmed. Do not share phone numbers, payment apps or social handles before confirming your rental in-app.',
         code: 'circumvention_blocked',
       });
     }

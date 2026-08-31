@@ -1,20 +1,21 @@
 services:
   - type: web
-    name: renthub
+    name: gorenthive
     env: node
-    plan: starter
+    plan: free
     buildCommand: npm install --omit=dev
-    startCommand: npm start
+    startCommand: node server/index.js
+    healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
-      - key: DATA_DIR
-        value: /var/data
-      - key: UPLOAD_DIR
-        value: /var/data/uploads
-    disk:
-      name: renthub-data
-      mountPath: /var/data
-      sizeGB: 10
+      - key: GATEWAY
+        value: sandbox
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

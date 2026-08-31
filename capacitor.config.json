@@ -1,6 +1,6 @@
 {
-  "appId": "com.renthub.app",
-  "appName": "RentHub",
+  "appId": "com.gorenthive.app",
+  "appName": "GoRentHive",
   "webDir": "public",
   "server": {
     "androidScheme": "https"

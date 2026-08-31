@@ -47,7 +47,7 @@ const OFF_PLATFORM_PATTERNS = [
 function detectCircumvention(text) {
   for (const re of OFF_PLATFORM_PATTERNS) {
     if (re.test(text)) {
-      return 'For your protection, keep payments and rental arrangements inside RentHub.';
+      return 'For your protection, keep payments and rental arrangements inside GoRentHive.';
     }
   }
   return '';

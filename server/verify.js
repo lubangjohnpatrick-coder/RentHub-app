@@ -94,8 +94,8 @@ function sendEmailVerification(userId, email) {
   db.prepare('INSERT INTO email_verifications (user_id, token, expires_at, used, created_at) VALUES (?,?,?,?,?)').run(
     userId, sha256(token), Date.now() + EMAIL_TOKEN_TTL_MS, 0, Date.now()
   );
-  const verifyUrl = `https://renthub.app/verify/email?token=${token}`;
-  emailTransport(email, 'Verify your RentHub email', `Click to verify: ${verifyUrl}`);
+  const verifyUrl = `https://gorenthive.online/verify/email?token=${token}`;
+  emailTransport(email, 'Verify your GoRentHive email', `Click to verify: ${verifyUrl}`);
   return { ok: true, demoToken: token };
 }
 

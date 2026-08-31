@@ -1,0 +1,332 @@
+'use strict';
+
+// Financial API — server only. All money movement happens here using the
+// service-role Supabase client, after authenticating the caller's Supabase JWT.
+// The browser cannot do these because RLS blocks writes to financial tables.
+
+const express = require('express');
+const { svcClient } = require('./supabase');
+const { requireAuth, requireAdmin } = require('./auth-service');
+const ledger = require('./ledger');
+const settings = require('./settings');
+const payment = require('./payment');
+const revenue = require('./revenue');
+
+const router = express.Router();
+const now = () => Date.now();
+const json = (s, fb) => { try { return JSON.parse(s || '{}'); } catch (e) { return fb || {}; } };
+
+// ============================================================
+// WALLET
+// ============================================================
+router.post('/wallet/topup', requireAuth, async (req, res) => {
+  try {
+    const amount = Math.round(Number(req.body.amount));
+    const method = req.body.method || 'sandbox'; // 'sandbox' | 'gcash'
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid top-up amount' });
+
+    // Switch gateway provider if gcash is requested
+    if (String(method).toLowerCase() === 'gcash' && process.env.GATEWAY !== 'gcash') {
+      const { GcashProvider } = require('./providers/gcash');
+      payment.gateway.provider = GcashProvider;
+    } else {
+      payment.gateway.provider = payment.SandboxProvider;
+    }
+
+    const pay = await payment.createPayment({
+      userId: req.user.id, bookingId: null, type: 'topup',
+      grossAmount: amount, platformFee: 0, method,
+      meta: { gcash_phone: req.body.gcash_phone || '' },
+    });
+    const walletAmount = Math.round(amount * 100); // pesos -> cents not used; keep pesos for MVP
+    const executed = await payment.executeCharge(pay);
+    if (executed.status !== 'succeeded') {
+      return res.status(402).json({ error: 'Payment not captured', payment: executed, authorization_url: executed.authorization_url });
+    }
+    // Credit wallet = the top-up amount
+    await ledger.addEntry({ userId: req.user.id, type: 'topup', amount, meta: { payment_ref: pay.payment_ref } });
+    const balance = await ledger.getUserBalance(req.user.id);
+    res.json({ ok: true, payment: executed, balance });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/wallet/withdraw', requireAuth, async (req, res) => {
+  try {
+    const amount = Math.round(Number(req.body.amount));
+    const method = req.body.method || 'bank';
+    const account = req.body.account || '';
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+
+    const balance = await ledger.getUserBalance(req.user.id);
+    if (balance < amount) return res.status(400).json({ error: 'Insufficient balance' });
+
+    const pay = await payment.createPayment({
+      userId: req.user.id, bookingId: null, type: 'withdrawal',
+      grossAmount: amount, platformFee: 0, method, meta: { account },
+    });
+    // Debit wallet (negative)
+    await ledger.addEntry({ userId: req.user.id, type: 'payout', amount: -amount, meta: { payment_ref: pay.payment_ref } });
+    // Record payout request (status pending, admin approves disbursement)
+    await svcClient().from('payouts').insert({
+      payment_id: pay.id, user_id: req.user.id, amount,
+      status: 'pending', method, account, created_at: now(),
+    });
+    const newBalance = await ledger.getUserBalance(req.user.id);
+    res.json({ ok: true, payment: pay, balance: newBalance });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/wallet', requireAuth, async (req, res) => {
+  try {
+    const balance = await ledger.getUserBalance(req.user.id);
+    const [led, pays, pays2] = await Promise.all([
+      svcClient().from('ledger_entries').select('*').eq('user_id', req.user.id).order('created_at', { ascending: false }).limit(50),
+      svcClient().from('payments').select('*').eq('user_id', req.user.id).order('created_at', { ascending: false }).limit(50),
+      svcClient().from('payouts').select('*').eq('user_id', req.user.id).order('created_at', { ascending: false }).limit(20),
+    ]);
+    const entries = (led.data || []).map((r) => ({ ...r, meta: json(r.meta) }));
+    const payments = (pays.data || []).map((r) => ({ ...r, meta: json(r.meta) }));
+    res.json({ balance, entries, payments, payouts: pays2.data || [] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// BOOKINGS — create uses the wallet escrow
+// ============================================================
+router.post('/bookings', requireAuth, async (req, res) => {
+  try {
+    const { listing_id, start_date, end_date, rental_days, rental_fee, security_deposit, delivery_fee, delivery_requested, lalamove_fee, platform_fee, total_charged, meeting_point, bundle_items } = req.body;
+    const balance = await ledger.getUserBalance(req.user.id);
+    if (balance < total_charged) {
+      return res.status(400).json({ error: 'Insufficient wallet balance. Please top up first.' });
+    }
+    const listing = await svcClient().from('listings').select('owner_id').eq('id', listing_id).limit(1).single();
+    const ownerId = listing.data?.owner_id;
+    const bookingRef = 'BK-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+
+    // Debited once, then the platform keeps: rental escrow + deposit escrow + fees
+    await ledger.addEntry({ userId: req.user.id, type: 'rental_escrow', amount: -(rental_fee + delivery_fee), meta: { booking_ref: bookingRef } });
+    if (security_deposit > 0) {
+      await ledger.addEntry({ userId: req.user.id, type: 'deposit_escrow', amount: -security_deposit, meta: { booking_ref: bookingRef } });
+    }
+
+    const nowMs = now();
+    const booking = (await svcClient().from('bookings').insert({
+      booking_ref: bookingRef, renter_id: req.user.id, owner_id: ownerId, listing_id,
+      start_date, end_date, rental_days, rental_fee, security_deposit,
+      delivery_fee, delivery_requested: !!delivery_requested,
+      delivery_method: delivery_requested ? 'lalamove' : 'pickup',
+      lalamove_fee: lalamove_fee || 0, platform_fee, total_charged,
+      amount_due_owner: rental_fee - platform_fee + delivery_fee,
+      status: 'pending', escrow_payment: true, created_at: nowMs, updated_at: nowMs,
+    }).select().single());
+
+    if (booking.error) throw new Error(booking.error.message);
+
+    // Security deposit custody row
+    if (security_deposit > 0) {
+      await svcClient().from('security_deposits').insert({
+        booking_id: booking.data.id, renter_id: req.user.id, owner_id: ownerId,
+        amount: security_deposit, status: 'held', created_at: nowMs,
+      });
+    }
+
+    // meeting point (optional)
+    if (meeting_point && meeting_point.name) {
+      await svcClient().from('meeting_points').insert({
+        booking_id: booking.data.id, point_name: meeting_point.name,
+        point_address: meeting_point.address || '', latitude: meeting_point.latitude || null,
+        longitude: meeting_point.longitude || null, proposed_by: req.user.id,
+        created_at: nowMs, updated_at: nowMs,
+      });
+    }
+
+    res.json({ ok: true, booking: booking.data });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// CANCEL — refund logic
+// ============================================================
+router.post('/bookings/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const bk = await svcClient().from('bookings').select('*').eq('id', id).limit(1).single();
+    if (bk.error || !bk.data) return res.status(404).json({ error: 'Booking not found' });
+    const b = bk.data;
+    if (b.renter_id !== req.user.id && b.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not your booking' });
+    }
+    if (!['pending', 'approved'].includes(b.status)) {
+      return res.status(400).json({ error: 'Booking cannot be cancelled now' });
+    }
+
+    const freeH = parseInt(await settings.getSetting('free_cancellation_hours', '48'), 10) || 48;
+    const partH = parseInt(await settings.getSetting('partial_cancellation_hours', '24'), 10) || 24;
+    const hoursLeft = (b.start_date - now()) / 3600000;
+    let refundPct = 1;
+    if (hoursLeft < partH) refundPct = 0;
+    else if (hoursLeft < freeH) refundPct = 0.5;
+
+    // Refund rental+delivery escrow (and deposit fully)
+    const refundAmount = Math.round((b.rental_fee + b.delivery_fee) * refundPct);
+    await ledger.addEntry({ bookingId: b.id, userId: b.renter_id, type: 'refund', amount: refundAmount, meta: { reason: 'cancellation' } });
+    if (b.security_deposit > 0) {
+      await ledger.addEntry({ bookingId: b.id, userId: b.renter_id, type: 'deposit', amount: b.security_deposit, meta: { reason: 'deposit_release_cancel' } });
+    }
+    // Refund the non-refunded portion is kept by owner/platform per policy (MVP keeps on account)
+    await svcClient().from('bookings').update({
+      status: 'cancelled', cancellation_reason: req.body.reason || 'cancelled', cancelled_by: req.user.id, updated_at: now(),
+    }).eq('id', b.id);
+    const balance = await ledger.getUserBalance(b.renter_id);
+    res.json({ ok: true, refundAmount, deposit: b.security_deposit, balance });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// COMPLETE — finalize, release deposit, credit owner
+// ============================================================
+router.post('/bookings/:id/complete', requireAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const bk = await svcClient().from('bookings').select('*').eq('id', id).limit(1).single();
+    if (bk.error || !bk.data) return res.status(404).json({ error: 'Booking not found' });
+    const b = bk.data;
+    if (b.owner_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only the owner can complete this booking' });
+    }
+    if (b.status !== 'active' && b.status !== 'returned') {
+      return res.status(400).json({ error: 'Booking is not in a completable state' });
+    }
+
+    const proposed = b.return_proposed_deduction > 0 ? b.return_proposed_deduction : 0;
+
+    // Credit owner: rental - platform fee + delivery fee (+ proposed deduction as damage penalty)
+    const ownerEarning = b.rental_fee - b.platform_fee + b.delivery_fee + proposed;
+    await ledger.addEntry({ bookingId: b.id, userId: b.owner_id, type: 'owner_earning', amount: ownerEarning, meta: { booking_ref: b.booking_ref } });
+
+    // Platform keeps its commission (8% or min 20 of rental fee)
+    await revenue.addIncome('commission', b.platform_fee || 0);
+
+    // Damage deduction credited to owner
+    if (proposed > 0) {
+      await ledger.addEntry({ bookingId: b.id, userId: b.owner_id, type: 'deposit_deduction', amount: proposed, meta: { reason: 'damage' } });
+    }
+
+    // Release remaining deposit to renter
+    const depositRemaining = Math.max(0, b.security_deposit - proposed);
+    if (depositRemaining > 0) {
+      await ledger.addEntry({ bookingId: b.id, userId: b.renter_id, type: 'deposit', amount: depositRemaining, meta: { reason: 'deposit_release' } });
+    }
+    if (b.security_deposit > 0) {
+      const dep = await svcClient().from('security_deposits').select('*').eq('booking_id', b.id).limit(1).maybeSingle();
+      if (dep.data && dep.data.status === 'held') {
+        await svcClient().from('security_deposits').update({
+          status: proposed > 0 ? 'partially_deducted' : 'released', deduction: proposed, released_at: now(),
+        }).eq('id', dep.data.id);
+      }
+    }
+
+    await svcClient().from('bookings').update({ status: 'completed', escrow_released: true, return_completed_at: now(), updated_at: now() }).eq('id', b.id);
+    const listingRow = await svcClient().from('listings').select('rental_count').eq('id', b.listing_id).limit(1).single();
+    await svcClient().from('listings').update({ rental_count: (listingRow.data?.rental_count || 0) + 1 }).eq('id', b.listing_id);
+
+    res.json({ ok: true, ownerEarning, depositReleased: depositRemaining });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// CHECKOUT QUOTE (server-computed, authoritative)
+// ============================================================
+router.post('/quote', requireAuth, async (req, res) => {
+  try {
+    const { rental_fee, delivery_fee } = req.body;
+    const platformFee = await settings.computePlatformFee(rental_fee || 0);
+    const total = (rental_fee || 0) + (delivery_fee || 0) + platformFee;
+    res.json({ rental_fee: rental_fee || 0, delivery_fee: delivery_fee || 0, platform_fee: platformFee, total });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// ADMIN — disputes + payouts (money movement)
+// ============================================================
+router.get('/admin/payouts', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { data, error } = await svcClient().from('payouts').select('*').order('created_at', { ascending: false }).limit(100);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/payouts/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const status = req.body.status;
+    const { data: p, error } = await svcClient().from('payouts').select('*').eq('id', id).limit(1).single();
+    if (error || !p) return res.status(404).json({ error: 'Payout not found' });
+    await svcClient().from('payouts').update({ status }).eq('id', id);
+    if (status === 'completed') {
+      await svcClient().from('payments').update({ status: 'succeeded', updated_at: now() }).eq('id', p.payment_id);
+    } else if (status === 'rejected' || status === 'cancelled') {
+      // refund the debited amount back to the user wallet
+      await ledger.addEntry({ userId: p.user_id, type: 'refund', amount: p.amount, meta: { reason: 'payout_rejected', payout_id: id } });
+      await svcClient().from('payments').update({ status: 'refunded', updated_at: now() }).eq('id', p.payment_id);
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/disputes/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { status, resolution, booking_action } = req.body;
+    await svcClient().from('disputes').update({ status, resolution: resolution || '', resolved_by: req.user.id, resolved_at: now() }).eq('id', id);
+    if (booking_action === 'release_to_owner') {
+      // force-complete: release to owner using default split (no deduction)
+      const d = await svcClient().from('disputes').select('booking_id').eq('id', id).limit(1).single();
+      if (d.data?.booking_id) {
+        const bk = await svcClient().from('bookings').select('*').eq('id', d.data.booking_id).limit(1).single();
+        const b = bk.data;
+        const ownerEarning = b.rental_fee - b.platform_fee + b.delivery_fee;
+        await ledger.addEntry({ bookingId: b.id, userId: b.owner_id, type: 'owner_earning', amount: ownerEarning, meta: { reason: 'dispute' } });
+        if (b.security_deposit > 0) {
+          await ledger.addEntry({ bookingId: b.id, userId: b.renter_id, type: 'deposit', amount: b.security_deposit, meta: { reason: 'dispute_deposit' } });
+        }
+        await svcClient().from('bookings').update({ status: 'completed', escrow_released: true, updated_at: now() }).eq('id', b.id);
+      }
+    } else if (booking_action === 'refund_renter') {
+      const d = await svcClient().from('disputes').select('booking_id').eq('id', id).limit(1).single();
+      if (d.data?.booking_id) {
+        const bk = await svcClient().from('bookings').select('*').eq('id', d.data.booking_id).limit(1).single();
+        const b = bk.data;
+        const refund = b.rental_fee + b.delivery_fee + b.security_deposit;
+        await ledger.addEntry({ bookingId: b.id, userId: b.renter_id, type: 'refund', amount: refund, meta: { reason: 'dispute_refund' } });
+        await svcClient().from('bookings').update({ status: 'cancelled', escrow_released: true, updated_at: now() }).eq('id', b.id);
+      }
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/revenue', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rev = await revenue.getRevenue();
+    res.json(rev);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+module.exports = router;

@@ -1,4 +1,4 @@
-/* RentHub frontend SPA */
+/* GoRentHive frontend SPA */
 const Root = {
   state: {
     user: null,
@@ -22,8 +22,8 @@ const Root = {
     }
   },
   promptTerms() {
-    this.modal(`RentHub Terms Update
-      <p style="font-size:13px;color:var(--ink-soft);margin-top:4px">Our Terms &amp; Conditions have been updated. You must accept them to keep renting and listing on RentHub.</p>
+    this.modal(`GoRentHive Terms Update
+      <p style="font-size:13px;color:var(--ink-soft);margin-top:4px">Our Terms &amp; Conditions have been updated. You must accept them to keep renting and listing on GoRentHive.</p>
       <button class="btn btn-primary btn-block" onclick="Root.acceptTerms()">I accept the Terms &amp; Conditions</button>`, 'close');
   },
   cacheEls() {
@@ -75,7 +75,7 @@ const Root = {
     }
     this.$topnav.innerHTML = `
       <div class="wrap topnav-inner">
-        <a href="#/" class="brand"><span class="logo">🔁</span><span><b>Rent</b>Hub</span></a>
+        <a href="#/" class="brand"><span class="logo">🐝</span><span><b>Go</b>RentHive</span></a>
         <div class="nav-links">${links}</div>
       </div>`;
     this.$bottom.innerHTML = `
@@ -115,6 +115,8 @@ const Root = {
         case 'booking': return this.viewBookingDetail(id);
         case 'list': return this.guard(() => this.viewListForm(id || null));
         case 'owner': return this.guard(() => this.viewOwnerDashboard());
+        case 'dashboard': return this.guard(() => this.viewSellerDashboard());
+        case 'premium': return this.guard(() => this.viewPremium());
         case 'messages': return this.guard(() => this.viewMessages());
         case 'favorites': return this.guard(() => this.viewFavorites());
         case 'wallet': return this.guard(() => this.viewWallet());
@@ -171,7 +173,7 @@ const Root = {
               </div>
             </div>
             <div class="hero-visual">
-              <div class="hv-card hv-c1" style="--hvc:${esc(cats.length ? cats[0].color : '#FF5A2B')}"><em>${cats.length ? cats[0].icon : '📸'}</em><span>${cats.length ? esc(cats[0].name) : 'Cameras'}</span></div>
+              <div class="hv-card hv-c1" style="--hvc:${esc(cats.length ? cats[0].color : '#E8920C')}"><em>${cats.length ? cats[0].icon : '📸'}</em><span>${cats.length ? esc(cats[0].name) : 'Cameras'}</span></div>
               <div class="hv-card hv-c2" style="--hvc:${esc(cats.length > 1 ? cats[1].color : '#6C5CE7')}"><em>${cats.length > 1 ? cats[1].icon : '⛺'}</em><span>${cats.length > 1 ? esc(cats[1].name) : 'Camping'}</span></div>
               <div class="hv-card hv-c3" style="--hvc:${esc(cats.length > 2 ? cats[2].color : '#22A06B')}"><em>${cats.length > 2 ? cats[2].icon : '🔊'}</em><span>${cats.length > 2 ? esc(cats[2].name) : 'Events'}</span></div>
               <div class="hv-badge"><b>★ 4.8</b> trusted community</div>
@@ -545,7 +547,7 @@ const Root = {
         <div class="price-line deposit"><span>Refundable deposit</span><span>${fmtMoney(q.security_deposit)}</span></div>
         ${q.deposit_discount_pct > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:2px">⭐ Trust discount: your ${q.deposit_discount_pct}% deposit discount (was ${fmtMoney(q.security_deposit_full)}) is applied based on your rental history.</div>` : ''}
         <div class="price-line total"><span>Total</span><span>${fmtMoney(q.total)}</span></div>
-        <p style="font-size:11px;color:var(--ink-soft);margin-top:6px">🔒 Paid securely through your RentHub wallet and held in escrow. Your ${fmtMoney(q.security_deposit)} deposit is refundable after a successful return.</p>`;
+        <p style="font-size:11px;color:var(--ink-soft);margin-top:6px">🔒 Paid securely through your GoRentHive wallet and held in escrow. Your ${fmtMoney(q.security_deposit)} deposit is refundable after a successful return.</p>`;
     } catch (e) { document.getElementById('bk-quote').innerHTML = `<p style="color:var(--red);font-size:13px">${esc(e.message)}</p>`; }
   },
   async doBook(id) {
@@ -629,7 +631,7 @@ const Root = {
               <div class="price-line deposit"><span>Security deposit</span><span>${fmtMoney(b.security_deposit)}</span></div>
               <div class="price-line total"><span>Total charged</span><span>${fmtMoney(b.total_charged)}</span></div>
               <div style="font-size:12px;color:var(--ink-soft);margin-top:8px">Owner receives ${fmtMoney(b.amount_due_owner)} after the ${fmtMoney(b.platform_fee)} platform fee.</div>
-              <div style="font-size:12px;color:var(--green);background:var(--bg);padding:9px 11px;border-radius:8px;margin-top:10px">🔒 ${fmtMoney(b.total_charged)} was paid securely through RentHub and is held in escrow. ${b.status === 'completed' ? 'Owner funds released to their wallet.' : 'Owner funds are released only after the rental is completed and the item is returned.'}</div>
+              <div style="font-size:12px;color:var(--green);background:var(--bg);padding:9px 11px;border-radius:8px;margin-top:10px">🔒 ${fmtMoney(b.total_charged)} was paid securely through GoRentHive and is held in escrow. ${b.status === 'completed' ? 'Owner funds released to their wallet.' : 'Owner funds are released only after the rental is completed and the item is returned.'}</div>
             </div>
 
             <div class="detail-card" style="margin-top:16px">
@@ -755,7 +757,7 @@ const Root = {
       <div class="price-line"><span>Delivery fee</span><span>${fmtMoney(b.delivery_fee)}</span></div>
       <div class="price-line"><span>Proof of payment</span><span class="pill ${paid ? 'completed' : 'pending'}">${paid ? 'PAID' : 'Pending'}</span></div>
       <p style="font-size:12px;color:var(--ink-soft);margin-top:6px">Show confirmation code <b style="color:var(--ink)">${esc(b.booking_ref)}</b> to the owner/driver as proof of payment before pickup.</p>
-      ${paid ? `<div style="font-size:12px;color:var(--green);background:var(--bg);padding:9px 11px;border-radius:8px;margin-top:8px">✅ Payment received in RentHub escrow. A driver is dispatched only after the owner approves and your payment clears.</div>` : ''}
+      ${paid ? `<div style="font-size:12px;color:var(--green);background:var(--bg);padding:9px 11px;border-radius:8px;margin-top:8px">✅ Payment received in GoRentHive escrow. A driver is dispatched only after the owner approves and your payment clears.</div>` : ''}
       <div style="margin-top:8px">
         ${this.deliveryRequestCard('Dispatch', dispatch, b, isOwner)}
         ${this.deliveryRequestCard('Return', ret, b, isRenter)}
@@ -903,7 +905,7 @@ const Root = {
   checkinModal(id, phase) {
     const label = phase === 'checkout' ? 'Check-Out (Return)' : 'Check-In (Handover)';
     this.modal(`Record ${label} Condition
-      <p style="font-size:12px;color:var(--ink-soft);margin-top:2px">${phase === 'checkout' ? 'Document the condition as the item is returned.' : 'Document the condition as the item is handed over.'} Photo evidence is stored and reviewable by both parties and RentHub.</p>
+      <p style="font-size:12px;color:var(--ink-soft);margin-top:2px">${phase === 'checkout' ? 'Document the condition as the item is returned.' : 'Document the condition as the item is handed over.'} Photo evidence is stored and reviewable by both parties and GoRentHive.</p>
       <div class="form-row"><label>Photos</label><input type="file" accept="image/*" multiple id="ck-files"></div>
       <div class="form-row"><label>Serial number</label><input id="ck-serial" placeholder="Serial number"></div>
       <div class="form-row"><label>Accessories included</label><input id="ck-acc" placeholder="Battery, charger, strap"></div>
@@ -1206,7 +1208,7 @@ const Root = {
   },
   chatThread(messages, other, bookingId) {
     return `<div class="chat-safe" style="font-size:12px;padding:8px 10px;border-radius:8px;background:#fff7ed;color:#9a5b00;margin-bottom:8px">
-      🔒 For safety, contact details &amp; payments stay inside RentHub. Sharing phone numbers, GCash/Maya or social handles before a booking is confirmed is blocked.
+      🔒 For safety, contact details &amp; payments stay inside GoRentHive. Sharing phone numbers, GCash/Maya or social handles before a booking is confirmed is blocked.
     </div>
     <div class="chat-thread" id="thread" style="max-height:380px;overflow-y:auto">
       ${messages.map(m => `<div class="msg ${m.sender_id === Root.state.user.id ? 'me' : 'them'}">
@@ -1249,7 +1251,7 @@ const Root = {
       <div class="detail-card">
         <h3>Wallet</h3>
         <div class="detail-price-big" style="color:var(--green)">${fmtMoney(w.balance)}</div>
-        <p style="font-size:13px;color:var(--ink-soft)">Available balance. Top up to pay for rentals through RentHub's secure escrow.</p>
+        <p style="font-size:13px;color:var(--ink-soft)">Available balance. Top up to pay for rentals through GoRentHive's secure escrow.</p>
         <div class="form-row" style="margin-top:14px"><label>Top-up amount (₱)</label><input id="tp-amt" type="number" min="50" value="1000"></div>
         <div class="form-row"><label>Via</label><select id="tp-method"><option>GCash</option><option>Maya</option><option>Bank transfer</option><option>Credit card</option></select></div>
         <button class="btn btn-green btn-block" onclick="Root.topUp()">💳 Top up wallet</button>
@@ -1294,6 +1296,88 @@ const Root = {
     const method = document.getElementById('wd-method').value;
     const account = document.getElementById('wd-acct').value;
     try { await API.post('/wallet/withdraw', { amount, method, account }); this.toast('Withdrawal requested', 'success'); location.reload(); }
+    catch (e) { this.toast(e.message, 'error'); }
+  },
+
+  /* ================= SELLER DASHBOARD ================= */
+  async viewSellerDashboard() {
+    const d = await API.get('/seller/dashboard');
+    const u = this.state.user;
+    const badge = d.premium ? '<span class="meta-pill" style="background:var(--honey);color:#3a2a00">👑 Premium</span>' : '<span class="meta-pill pending">Free plan</span>';
+    this.$app.innerHTML = `<div class="wrap" style="padding-top:24px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h3 style="margin:0">📊 Seller Dashboard</h3>${badge}
+        <span style="margin-left:auto"><a class="btn btn-outline" href="#/list/new">+ New listing</a></span>
+      </div>
+      <p style="font-size:13px;color:var(--ink-soft);margin-top:6px">Track your listings, sales and gross income.</p>
+      <div class="stat-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:16px">
+        ${stat('Active listings', d.counts.active_listings)}
+        ${stat('Total listings', d.counts.total_listings)}
+        ${stat('Completed rentals', d.counts.completed_bookings)}
+        ${stat('Total bookings', d.counts.total_bookings)}
+        ${stat('Gross income', fmtMoney(d.money.gross_income), 'var(--green)')}
+        ${stat('Platform fees', fmtMoney(d.money.platform_fees), 'var(--red)')}
+        ${stat('Net income', fmtMoney(d.money.net_income), 'var(--green)')}
+      </div>
+      <div class="detail-card" style="margin-top:16px">
+        <h3>Business details</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px">
+          <div><div class="s" style="color:var(--ink-soft);font-size:12px">Owner</div><div class="t">${esc(u.full_name)}</div></div>
+          <div><div class="s" style="color:var(--ink-soft);font-size:12px">Email</div><div class="t">${esc(u.email || '—')}</div></div>
+          <div><div class="s" style="color:var(--ink-soft);font-size:12px">City</div><div class="t">${esc(u.city || '—')}</div></div>
+          <div><div class="s" style="color:var(--ink-soft);font-size:12px">Total rentals sold</div><div class="t">${d.counts.total_rentals}</div></div>
+          <div><div class="s" style="color:var(--ink-soft);font-size:12px">Pending bookings</div><div class="t">${d.counts.pending_bookings}</div></div>
+        </div>
+      </div>
+      <div class="detail-card" style="margin-top:16px">
+        <h3>My listings</h3>
+        <div style="margin-top:10px">${d.listings.map(l => `
+          <div class="list-row" style="box-shadow:none">
+            <div class="body">
+              <div class="t">${esc(l.title)}</div>
+              <div class="s">${fmtMoney(l.price_per_day)}/day · ${l.rental_count} rentals · ${l.featured ? '⭐ Featured' : ''}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:12px;color:${l.status === 'active' ? 'var(--green)' : 'var(--ink-soft)'}">${esc(l.status)}</div>
+              ${l.status === 'active' ? `<div style="margin-top:4px"><button class="btn btn-outline btn-sm" onclick="Root.boostMySQL(${l.id})">⚡ Boost ₱49</button></div>` : ''}
+            </div>
+          </div>`).join('') || '<p style="color:var(--ink-soft);font-size:13px">No listings yet. <a href="#/list/new">Create one</a>.</p>'}
+        </div>
+      </div>
+    </div>`;
+    function stat(k, v, color) {
+      return `<div class="detail-card" style="padding:14px"><div class="s" style="color:var(--ink-soft);font-size:12px">${k}</div><div class="t" style="font-size:20px;font-weight:800;color:${color || 'inherit'}">${v}</div></div>`;
+    }
+  },
+  async boostMySQL(id) {
+    try { const r = await API.post('/listings/' + id + '/boost', {}); this.toast(`Featured boost active — ₱${r.fee} ✓`, 'success'); this.viewSellerDashboard(); }
+    catch (e) { this.toast(e.message, 'error'); }
+  },
+
+  /* ================= PREMIUM ================= */
+  async viewPremium() {
+    const u = this.state.user;
+    const active = u.is_premium;
+    const until = u.premium_until ? `expires ${fmtDate(u.premium_until)}` : '';
+    this.$app.innerHTML = `<div class="wrap" style="padding-top:24px">
+      <div class="detail-card" style="max-width:520px;margin:0 auto">
+        <div style="font-size:34px">👑</div>
+        <h3>GoRentHive Premium</h3>
+        <p style="font-size:13.5px;color:var(--ink-soft);margin-top:6px">Upgrade to grow your rental business.</p>
+        <ul style="margin:14px 0 0;padding-left:20px;font-size:14px;line-height:1.9">
+          <li>♾️ <b>Unlimited listings</b> — no monthly cap</li>
+          <li>📊 <b>Seller dashboard</b> — track sales, gross &amp; net income</li>
+          <li>📈 <b>Business insights</b> to grow your rentals</li>
+        </ul>
+        <div style="margin-top:16px;padding:14px;border:1px dashed var(--line);border-radius:10px;text-align:center">
+          <div style="font-size:26px;font-weight:800">₱1,499<span style="font-size:13px;color:var(--ink-soft)">/year</span></div>
+          ${active ? `<div style="margin-top:8px;color:var(--green)">✓ You're Premium${until ? ' (' + until + ')' : ''}</div>` : `<button class="btn btn-primary btn-block" onclick="Root.purchasePremium()">Upgrade to Premium</button>`}
+        </div>
+      </div>
+    </div>`;
+  },
+  async purchasePremium() {
+    try { const r = await API.post('/account/premium', {}); this.toast(`Premium activated — ₱${r.fee} charged ✓`, 'success'); this.refreshUser(); }
     catch (e) { this.toast(e.message, 'error'); }
   },
 
@@ -1347,6 +1431,8 @@ const Root = {
         <div>
           <div class="booking-box">
             <button class="btn btn-outline btn-block" onclick="location.hash='#/wallet'">💰 Wallet</button>
+            ${u.is_owner ? `<button class="btn btn-outline btn-block" style="margin-top:8px" onclick="location.hash='#/dashboard'">📊 Seller Dashboard</button>` : ''}
+            <button class="btn ${u.is_premium ? 'btn-outline' : 'btn-primary'} btn-block" style="margin-top:8px" onclick="location.hash='#/premium'">${u.is_premium ? '👑 Premium Active' : '👑 Go Premium'}</button>
             <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="location.hash='#/favorites'">♡ Favorites</button>
             <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="location.hash='#/notifications'">🔔 Notifications</button>
             <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="location.hash='#/requests'">🙏 My Rent Requests</button>
@@ -1415,7 +1501,7 @@ const Root = {
     this.$app.innerHTML = `<div class="wrap" style="padding-top:24px">
       <div class="detail-card">
         <h3>🔐 Security &amp; Verification</h3>
-        <p style="font-size:13px;color:var(--ink-soft);margin-top:4px">Renting and listing require a fully verified account. Verification helps keep RentHub safe and makes sure transactions happen securely in-app.</p>
+        <p style="font-size:13px;color:var(--ink-soft);margin-top:4px">Renting and listing require a fully verified account. Verification helps keep GoRentHive safe and makes sure transactions happen securely in-app.</p>
         <div style="margin-top:12px">
           ${item(u.email_verified, 'Email address', 'Root.sendEmailVerify()', 'Confirm the email on your account')}
           ${item(u.mobile_verified, 'Phone number', 'Root.sendMobileOtp()', 'Receive a one-time 6-digit SMS code')}
@@ -1435,7 +1521,7 @@ const Root = {
   },
   async acceptTermsPrompt() {
     this.modal(`Terms &amp; Conditions
-      <p style="font-size:12.5px;color:var(--ink-soft)">By accepting you agree to keep all payments inside RentHub, not to share contact details to move bookings off-platform, and to follow RentHub's Rental, Cancellation, Refund and Damage policies.</p>
+      <p style="font-size:12.5px;color:var(--ink-soft)">By accepting you agree to keep all payments inside GoRentHive, not to share contact details to move bookings off-platform, and to follow GoRentHive's Rental, Cancellation, Refund and Damage policies.</p>
       <button class="btn btn-primary btn-block" onclick="Root.acceptTerms()">I accept the Terms &amp; Conditions</button>`, 'close');
   },
   async acceptTerms() {
@@ -1465,7 +1551,7 @@ const Root = {
   verifyLocation() {
     const loc = this.state.meLocation || {};
     this.modal(`Verify your location
-      <p style="font-size:12.5px;color:var(--ink-soft)">Verifying your location lets RentHub show you listings nearby and confirm safe public meeting points for handovers. Your exact location is never shown publicly.</p>
+      <p style="font-size:12.5px;color:var(--ink-soft)">Verifying your location lets GoRentHive show you listings nearby and confirm safe public meeting points for handovers. Your exact location is never shown publicly.</p>
       <p style="font-size:12.5px;color:var(--ink-soft);margin-top:6px">📍 Saved location: <b>${loc.latitude != null ? Number(loc.latitude).toFixed(4) + ', ' + Number(loc.longitude).toFixed(4) : 'Not set'}</b> (${esc(this.state.user.location_status || 'none')})</p>
       <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="Root.verifyLocationGps()">Use my current GPS location</button>
       <div style="text-align:center;color:var(--ink-soft);font-size:12px;margin:8px 0">or enter coordinates manually</div>
@@ -1528,16 +1614,16 @@ const Root = {
   viewAuth(mode) {
     const isLogin = mode === 'login';
     this.$app.innerHTML = `<div class="wrap" style="padding-top:40px"><div class="form-card">
-      <div class="brand" style="justify-content:center;margin-bottom:14px"><span class="logo">🔁</span><span><b>Rent</b>Hub</span></div>
+      <div class="brand" style="justify-content:center;margin-bottom:14px"><span class="logo">🐝</span><span><b>Go</b>RentHive</span></div>
       <div class="form-title" style="text-align:center">${isLogin ? 'Welcome back' : 'Create your account'}</div>
-      <p class="form-sub" style="text-align:center">${isLogin ? 'Log in to continue renting & earning.' : 'Join RentHub. Need it? Rent it. Own it? Earn from it.'}</p>
+      <p class="form-sub" style="text-align:center">${isLogin ? 'Log in to continue renting & earning.' : 'Join GoRentHive. Need it? Rent it. Own it? Earn from it.'}</p>
       ${isLogin ? '' : `<div class="form-row"><label>Full name</label><input id="a-name" placeholder="Juan Dela Cruz"></div>`}
       <div class="form-row"><label>Email</label><input id="a-email" type="email" placeholder="you@email.com"></div>
       <div class="form-row"><label>Phone (optional)</label><input id="a-phone" placeholder="09xxxxxxxxx"></div>
       <div class="form-row"><label>Password</label><input id="a-pass" type="password" placeholder="••••••••"></div>
       ${isLogin ? '' : `<div class="form-row"><label>City</label><input id="a-city" placeholder="e.g. General Trias"></div>`}
       <button class="btn btn-primary btn-block btn-lg" onclick="Root.doAuth('${mode}')">${isLogin ? 'Log in →' : 'Create account →'}</button>
-      <div class="alt">${isLogin ? `New to RentHub? <a href="#/register">Create an account</a>` : `Already have an account? <a href="#/login">Log in</a>`}</div>
+      <div class="alt">${isLogin ? `New to GoRentHive? <a href="#/register">Create an account</a>` : `Already have an account? <a href="#/login">Log in</a>`}</div>
     </div></div>`;
   },
   async doAuth(mode) {

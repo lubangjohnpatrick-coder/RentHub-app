@@ -6,7 +6,7 @@ const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, '..', 'data');
-const DB_PATH = path.join(DATA_DIR, 'renthub.db');
+const DB_PATH = path.join(DATA_DIR, 'gorenthive.db');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -603,7 +603,7 @@ function defaultSettings() {
     ['featured_fee_premium', '199'],
     ['free_cancellation_hours', '48'],
     ['partial_cancellation_hours', '24'],
-    ['platform_name', 'RentHub'],
+    ['platform_name', 'GoRentHive'],
     ['platform_tagline', 'Need it? Rent it. Own it? Earn from it.'],
     ['terms_version', '1'],
     ['max_verification_level', '4'],
@@ -665,7 +665,58 @@ function seedCategories() {
   tx();
 }
 
+function seedDemoUsers() {
+  const now = Date.now();
+  const accounts = [
+    {
+      email: 'admin@gorenthive.online',
+      phone: null,
+      password: 'admin123',
+      full_name: 'GoRentHive Admin',
+      role: 'admin',
+      city: 'Manila',
+      is_owner: 0,
+    },
+    {
+      email: 'mia@gorenthive.online',
+      phone: null,
+      password: 'renter123',
+      full_name: 'Mia Renter',
+      role: 'user',
+      city: 'Quezon City',
+      is_owner: 0,
+    },
+    {
+      email: 'juan@gorenthive.online',
+      phone: null,
+      password: 'owner123',
+      full_name: 'Juan Owner',
+      role: 'user',
+      city: 'Cebu City',
+      is_owner: 1,
+    },
+  ];
+
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO users (
+      email, phone, password_hash, full_name, role, city, referral_code, referred_by_user_id,
+      is_owner, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const tx = db.transaction(() => {
+    accounts.forEach(({ email, phone, password, full_name, role, city, is_owner }) => {
+      const hash = bcrypt.hashSync(password, 10);
+      const code = `RH-${email.split('@')[0].slice(0, 4).toUpperCase()}${String(Date.now()).slice(-4)}`;
+      stmt.run(email, phone, hash, full_name, role, city, code, null, is_owner, now, now);
+    });
+  });
+
+  tx();
+}
+
 defaultSettings();
 seedCategories();
+seedDemoUsers();
 
 module.exports = db;

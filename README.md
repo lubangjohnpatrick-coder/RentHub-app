@@ -1,8 +1,8 @@
-# RentHub 🔁
+# GoRentHive 🐝
 
 > **Need it? Rent it. Own it? Earn from it.**
 
-RentHub is a **peer-to-peer rental marketplace** where people rent items from each other. Owners list the things they already own; renters search, book, pay, and return them. RentHub facilitates discovery, verification, booking, payment, rental agreements, security deposits, communication, reviews, disputes, and platform fees.
+GoRentHive is a **peer-to-peer rental marketplace** where people rent items from each other. Owners list the things they already own; renters search, book, pay, and return them. GoRentHive facilitates discovery, verification, booking, payment, rental agreements, security deposits, communication, reviews, disputes, and platform fees.
 
 It is built as a **mobile-first Progressive Web App (PWA)**, so it runs in any browser and can be **installed to a phone** to work like an app — and is architected for later packaging into **Android/iOS** apps (e.g. with Capacitor).
 
@@ -14,7 +14,7 @@ It is built as a **mobile-first Progressive Web App (PWA)**, so it runs in any b
 # 1. Install dependencies
 npm install
 
-# 2. Start with an empty pilot database (created automatically)
+# 2. Start with an empty pilot database (created automatically)android\app\build\outputs\apk\debug\app-debug.apk
 npm start
 ```
 
@@ -39,15 +39,15 @@ The SQL starter schema is in [supabase/schema.sql](supabase/schema.sql). The cur
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Admin** | `admin@renthub.ph` | `admin123` |
-| **Owner** (Juan, Toyota Vios) | `juan@renthub.ph` | `owner123` |
-| **Owner** (Maria, gown/PS5) | `maria@renthub.ph` | `owner123` |
-| **Owner** (Pedro, generator) | `pedro@renthub.ph` | `owner123` |
-| **Owner** (Carlos, cameras) | `cam@renthub.ph` | `owner123` |
-| **Owner** (Ana, tents) | `tent@renthub.ph` | `owner123` |
-| **Owner** (Berto, speakers) | `bee@renthub.ph` | `owner123` |
-| **Renter** (Mia) | `mia@renthub.ph` | `renter123` |
-| **Renter** (Leo) | `leo@renthub.ph` | `renter123` |
+| **Admin** | `admin@gorenthive.online` | `admin123` |
+| **Owner** (Juan, Toyota Vios) | `juan@gorenthive.online` | `owner123` |
+| **Owner** (Maria, gown/PS5) | `maria@gorenthive.online` | `owner123` |
+| **Owner** (Pedro, generator) | `pedro@gorenthive.online` | `owner123` |
+| **Owner** (Carlos, cameras) | `cam@gorenthive.online` | `owner123` |
+| **Owner** (Ana, tents) | `tent@gorenthive.online` | `owner123` |
+| **Owner** (Berto, speakers) | `bee@gorenthive.online` | `owner123` |
+| **Renter** (Mia) | `mia@gorenthive.online` | `renter123` |
+| **Renter** (Leo) | `leo@gorenthive.online` | `renter123` |
 
 There are no demo accounts or sample listings. Register a real pilot account from the app, then complete email, phone, identity, and Terms & Conditions requirements before listing.
 
@@ -125,7 +125,7 @@ Terms & Conditions, Privacy Policy, Rental Agreement, Cancellation, Refund, Dama
 
 Authenticated owners can upload up to eight image files per listing, with an 8 MB limit per file. Uploaded listing photos are stored under `public/uploads` for local pilot use. New messages create an in-app notification for the recipient, and publishing a listing creates a confirmation notification for its owner.
 
-For a clean local pilot database, stop the server and delete `data/renthub.db*`, then run `npm start`. This removes local pilot data; it does not affect Supabase.
+For a clean local pilot database, stop the server and delete `data/gorenthive.db*`, then run `npm start`. This removes local pilot data; it does not affect Supabase.
 
 ## Android APK
 
@@ -145,7 +145,7 @@ The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`.
 ## Project Structure
 
 ```
-renthub/
+gorenthive/
 ├─ server/
 │  ├─ index.js            # Express app, static + API routing
 │  ├─ db/schema.js        # SQLite schema (node:sqlite), default settings/categories

@@ -50,7 +50,7 @@ function generate(id, title) {
   <text x="320" y="215" font-size="120" text-anchor="middle">${emoji}</text>
   <rect x="40" y="370" width="560" rx="16" fill="#000000" opacity="0.35"/>
   <text x="320" y="405" font-size="26" fill="#ffffff" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">${escapeXml(title)}</text>
-  <text x="320" y="445" font-size="18" fill="#ffffff" opacity="0.85" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">RentHub</text>
+  <text x="320" y="445" font-size="18" fill="#ffffff" opacity="0.85" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">GoRentHive</text>
 </svg>`;
   fs.writeFileSync(path.join(OUT, id + '.svg'), svg);
   return '/images/svg/' + id + '.svg';

@@ -12,5 +12,5 @@
   <text x="320" y="215" font-size="120" text-anchor="middle">⚡</text>
   <rect x="40" y="370" width="560" rx="16" fill="#000000" opacity="0.35"/>
   <text x="320" y="405" font-size="26" fill="#ffffff" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">Honda 5kW Portable Generator</text>
-  <text x="320" y="445" font-size="18" fill="#ffffff" opacity="0.85" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">RentHub</text>
+  <text x="320" y="445" font-size="18" fill="#ffffff" opacity="0.85" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">GoRentHive</text>
 </svg>

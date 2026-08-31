@@ -1,36 +1,75 @@
 'use strict';
 
-const db = require('./db/schema');
+// Server-side settings backed by Supabase admin_settings.
+// Server only — uses the service-role client.
 
-function getSetting(key, fallback) {
-  const row = db.prepare('SELECT value FROM admin_settings WHERE key = ?').get(key);
-  if (!row) return fallback;
-  return row.value;
+const { svcClient } = require('./supabase');
+
+async function getSetting(key, fallback) {
+  try {
+    const { data, error } = await svcClient()
+      .from('admin_settings').select('value').eq('key', key).limit(1).single();
+    if (error || !data) return fallback;
+    return data.value;
+  } catch (e) {
+    return fallback;
+  }
 }
 
-function setSetting(key, value) {
-  db.prepare(
-    'INSERT INTO admin_settings (key, value, updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at'
-  ).run(key, String(value), Date.now());
+async function setSetting(key, value) {
+  const { error } = await svcClient()
+    .from('admin_settings')
+    .upsert({ key, value: String(value), updated_at: Date.now() }, { onConflict: 'key' });
+  if (error) throw new Error('Settings error: ' + error.message);
 }
 
-// Platform fee for a rental price. Fee = max(percent, minFee) capped by maxFee if set.
-function computePlatformFee(rentalPrice) {
-  const percent = parseFloat(getSetting('platform_percent', '4')) || 4;
-  const minFee = parseInt(getSetting('platform_min_fee', '20'), 10) || 20;
-  const maxFeeRaw = getSetting('platform_max_fee', '');
-  let fee = Math.round((rentalPrice * percent) / 100);
-  if (fee < minFee) fee = minFee;
+// Commission = max(8% of rental fee, 20). Applies to rental fee only.
+async function computePlatformFee(rentalPrice) {
+  const percent = parseFloat((await getSetting('platform_percent', '8'))) || 8;
+  const minFee = parseInt(await getSetting('platform_min_fee', '20'), 10) || 20;
+  const maxFeeRaw = await getSetting('platform_max_fee', '');
+  let fee = Math.max(Math.round((rentalPrice * percent) / 100), minFee);
   if (maxFeeRaw && fee > parseInt(maxFeeRaw, 10)) fee = parseInt(maxFeeRaw, 10);
   return fee;
 }
 
-function getFeaturedPlans() {
-  return {
-    basic: parseInt(getSetting('featured_fee_basic', '49'), 10),
-    plus: parseInt(getSetting('featured_fee_plus', '99'), 10),
-    premium: parseInt(getSetting('featured_fee_premium', '199'), 10),
-  };
+// Free-plan monthly active-listing cap (premium = unlimited).
+async function getFreeListingLimit() {
+  return parseInt(await getSetting('free_listing_limit', '15'), 10) || 15;
 }
 
-module.exports = { getSetting, setSetting, computePlatformFee, getFeaturedPlans };
+// One-time fee per extra listing posted while over the free cap.
+async function getExtraListingFee() {
+  return parseInt(await getSetting('extra_listing_fee', '10'), 10) || 10;
+}
+
+// Premium membership yearly fee in pesos.
+async function getPremiumFee() {
+  return parseInt(await getSetting('premium_fee', '1499'), 10) || 1499;
+}
+
+// Featured/boost: fee and duration in days.
+async function getFeaturedPlan() {
+  const fee = parseInt(await getSetting('featured_fee', '49'), 10) || 49;
+  const days = parseInt(await getSetting('featured_days', '30'), 10) || 30;
+  return { fee, days };
+}
+
+// Legacy multi-tier plans kept for backwards-compat.
+async function getFeaturedPlans() {
+  const basic = parseInt(await getSetting('featured_fee_basic', '49'), 10);
+  const plus = parseInt(await getSetting('featured_fee_plus', '99'), 10);
+  const premium = parseInt(await getSetting('featured_fee_premium', '199'), 10);
+  return { basic, plus, premium };
+}
+
+module.exports = {
+  getSetting,
+  setSetting,
+  computePlatformFee,
+  getFreeListingLimit,
+  getExtraListingFee,
+  getPremiumFee,
+  getFeaturedPlan,
+  getFeaturedPlans,
+};

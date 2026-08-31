@@ -136,9 +136,9 @@ router.post('/', requireAuth, (req, res) => {
   if (overlap) return res.status(400).json({ error: 'The item is already booked for those dates' });
 
   // ---- GATE 4: mandatory in-app escrow ----
-  // Renter must pay the FULL amount (rental + deposit + platform fee) into RentHub's
+  // Renter must pay the FULL amount (rental + deposit + platform fee) into GoRentHive's
   // escrow through their wallet BEFORE the booking can proceed. This keeps the
-  // transaction inside the app so RentHub revenue is always collected.
+  // transaction inside the app so GoRentHive revenue is always collected.
   const balance = ledger.getUserBalance(req.user.id);
   if (balance < total) {
     return res.status(402).json({
@@ -441,7 +441,7 @@ Accessories: ${listing.accessories || 'None listed'}
 Cancellation policy: ${listing.cancellation_policy}
 Rules: ${listing.rules || 'None'}
 
-The renter agrees to return the item in the same condition, subject to normal wear and tear. The security deposit is refundable subject to the terms of the Damages & Losses policy. By accepting this agreement electronically, both parties agree to be bound by RentHub's Terms & Conditions, Rental Agreement, Cancellation, Refund and Damage & Loss Policies.
+The renter agrees to return the item in the same condition, subject to normal wear and tear. The security deposit is refundable subject to the terms of the Damages & Losses policy. By accepting this agreement electronically, both parties agree to be bound by GoRentHive's Terms & Conditions, Rental Agreement, Cancellation, Refund and Damage & Loss Policies.
 
 Both parties accept electronically.`;
 }

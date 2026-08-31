@@ -1,4 +1,4 @@
-package com.renthub.app;
+package com.gorenthive.app;
 
 import com.getcapacitor.BridgeActivity;
 

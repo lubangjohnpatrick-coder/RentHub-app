@@ -23,7 +23,7 @@ function check(label, cond, detail) {
 }
 
 (async () => {
-  const email = 'newuser' + Date.now() + '@renthub.ph';
+  const email = 'newuser' + Date.now() + '@gorenthive.online';
   const phone = '0917' + String(Date.now()).slice(-8);
   // 1. Register
   console.log('\n== 1. Register ==');
@@ -64,7 +64,7 @@ function check(label, cond, detail) {
   r = await api('POST', '/auth/verify/identity', { id_type: "Driver's License", id_number: 'ID-12345', selfie: '' }, cookie);
   check('identity submitted pending', r.status === 200 && r.data.user.identity_status === 'pending', JSON.stringify(r.data));
   // admin login
-  let ar = await api('POST', '/auth/login', { email: 'admin@renthub.ph', password: 'admin123' });
+  let ar = await api('POST', '/auth/login', { email: 'admin@gorenthive.online', password: 'admin123' });
   const adminCookie = ar.setCookie.split(';')[0];
   const me = await api('GET', '/auth/me', null, cookie);
   const uid = me.data.user.id;
@@ -98,7 +98,7 @@ function check(label, cond, detail) {
 
   // 11. Owner approves & both sign -> active
   console.log('\n== 11. Approve + sign agreement ==');
-  const ownerCookie = (await api('POST', '/auth/login', { email: 'cam@renthub.ph', password: 'owner123' })).setCookie.split(';')[0];
+  const ownerCookie = (await api('POST', '/auth/login', { email: 'cam@gorenthive.online', password: 'owner123' })).setCookie.split(';')[0];
   r = await api('POST', `/bookings/${booking.id}/approve`, {}, ownerCookie);
   check('owner approves (escrow cleared)', r.status === 200, JSON.stringify(r.data));
   r = await api('POST', `/bookings/${booking.id}/sign-agreement`, {}, ownerCookie);

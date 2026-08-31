@@ -20,9 +20,9 @@ function check(label, cond, detail) {
 
 (async () => {
   // login renter + owner + admin via managed cookies
-  const mia = (await api('POST', '/auth/login', { email: 'mia@renthub.ph', password: 'renter123' })).setCookie.split(';')[0];
-  const cam = (await api('POST', '/auth/login', { email: 'cam@renthub.ph', password: 'owner123' })).setCookie.split(';')[0];
-  const admin = (await api('POST', '/auth/login', { email: 'admin@renthub.ph', password: 'admin123' })).setCookie.split(';')[0];
+  const mia = (await api('POST', '/auth/login', { email: 'mia@gorenthive.online', password: 'renter123' })).setCookie.split(';')[0];
+  const cam = (await api('POST', '/auth/login', { email: 'cam@gorenthive.online', password: 'owner123' })).setCookie.split(';')[0];
+  const admin = (await api('POST', '/auth/login', { email: 'admin@gorenthive.online', password: 'admin123' })).setCookie.split(';')[0];
 
   // Seed a fresh escrowed booking for the dispute scenario (cam listing 1, mia rents)
   const sd = new Date(); sd.setDate(sd.getDate() + 14);
