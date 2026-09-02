@@ -2003,12 +2003,14 @@ const Root = {
         const rev = await API.get('/admin/revenue');
         const f = rev.founder || {};
         const fmtM = (method) => ({ gcash: 'GCash', maya: 'Maya', bank: 'Bank transfer' }[method] || method || '—');
+        const selMethod = ['gcash', 'maya', 'bank'].includes(f.method) ? f.method : 'gcash';
+        const faOptions = [['gcash', 'GCash'], ['maya', 'Maya'], ['bank', 'Bank transfer']].map(([v, l]) => `<option value="${v}" ${v === selMethod ? 'selected' : ''}>${l}</option>`).join('');
         el().innerHTML = `<div class="detail-card"><h3>🏦 Founder / Platform Payout Account</h3>
           <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:10px">Where GoRentHive's own earnings should be remitted to you. This is your bank / GCash / Maya account.</p>
-          <div class="form-row"><label>Method</label><select id="fa-method"><option value="${f.method || 'gcash'}" selected>${fmtM(f.method)}</option><option value="gcash">GCash</option><option value="maya">Maya</option><option value="bank">Bank transfer</option></select></div>
+          <div class="form-row"><label>Method</label><select id="fa-method" onchange="Root.toggleFounderBank()">${faOptions}</select></div>
           <div class="form-row"><label>Account holder name</label><input id="fa-name" value="${esc(f.account_name || '')}"></div>
           <div class="form-row"><label>Account number / GCash / Maya number</label><input id="fa-acct" value="${esc(f.account || '')}"></div>
-          <div class="form-row"><label>Bank name (if bank)</label><input id="fa-bank" value="${esc(f.bank_name || '')}"></div>
+          <div class="form-row" id="fa-bank-row" style="display:${selMethod === 'bank' ? '' : 'none'}"><label>Bank name</label><input id="fa-bank" value="${esc(f.bank_name || '')}" placeholder="e.g. BDO, BPI, GCash (bank transfer)"></div>
           <button class="btn btn-primary" onclick="Root.saveFounderAccount()">Save payout account</button>
         </div>
         <div class="detail-card" style="margin-top:12px"><h3>💰 Total Platform Revenue</h3>
@@ -2105,6 +2107,11 @@ const Root = {
     };
     try { await API.post('/admin/settings', body); this.toast('Settings saved', 'success'); location.reload(); }
     catch (e) { this.toast(e.message, 'error'); }
+  },
+  toggleFounderBank() {
+    const v = document.getElementById('fa-method').value;
+    const row = document.getElementById('fa-bank-row');
+    if (row) row.style.display = v === 'bank' ? '' : 'none';
   },
   async saveFounderAccount() {
     const body = {
