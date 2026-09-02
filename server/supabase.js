@@ -13,7 +13,7 @@ function getConfig() {
   const anonKey = process.env.SUPABASE_ANON_KEY;
   if (!url) throw new Error('SUPABASE_URL (or SUPABASE_REST_URL) is not set in server/.env');
   const currentUrl = String(url).replace(/\/rest\/v1$/, '').replace(/\/$/, '');
-  return { url: currentUrl, serviceKey: serviceKey || anonKey };
+  return { url: currentUrl, serviceKey: serviceKey || anonKey, anonKey };
 }
 
 let svc = null;
@@ -39,11 +39,22 @@ function anonClient() {
   return anon;
 }
 
+// Find a client that can verify a user token. Prefer the anon key (least
+// privilege), but fall back to the service-role client so verification still
+// works even when SUPABASE_ANON_KEY is missing/unset in the deploy env.
+function getVerifyClient() {
+  const { anonKey } = getConfig();
+  if (anonKey) {
+    try { return anonClient(); } catch (e) { /* fall through to service */ }
+  }
+  return svcClient();
+}
+
 // Verify a Supabase access token (JWT) and return its auth user id, or null.
 async function verifyToken(token) {
   if (!token) return null;
   try {
-    const { data, error } = await anonClient().auth.getUser(token);
+    const { data, error } = await getVerifyClient().auth.getUser(token);
     if (error) return null;
     return data.user || null;
   } catch (e) {
