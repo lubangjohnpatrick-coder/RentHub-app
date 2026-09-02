@@ -100,7 +100,15 @@ const Root = {
     const query = segs ? Object.fromEntries(new URLSearchParams(segs)) : {};
     this.state.params = { parts, query };
     this.$app.innerHTML = `<div class="spinner"></div>`;
-    await this.render(parts, query);
+    try {
+      await this.render(parts, query);
+    } catch (e) {
+      if (e && e.status === 401 && parts[0] !== 'login' && parts[0] !== 'register') {
+        location.hash = '#/login';
+        return;
+      }
+      this.$app.innerHTML = `<div class="empty"><div class="em">⚠️</div><h3>Something went wrong</h3><p>${esc(e && e.message || 'Server error')}</p></div>`;
+    }
     window.scrollTo(0, 0);
   },
   async render(parts, query) {
