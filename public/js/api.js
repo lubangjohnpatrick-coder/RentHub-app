@@ -61,7 +61,12 @@ const SupabaseAuth = {
       throw new Error(error.message || 'Login failed');
     }
     const m = await me();
-    return { user: (m && m.user) ? m.user : null };
+    if (m && m.user) return { user: m.user };
+    try {
+      const { data: { user: sbUser } } = await c.auth.getUser();
+      if (sbUser) return { user: { id: sbUser.id, full_name: sbUser.user_metadata?.full_name || (sbUser.email || '').split('@')[0] || 'User', email: sbUser.email || '', phone: sbUser.phone || '', role: 'user', is_owner: false } };
+    } catch (e) {}
+    return { user: null };
   },
   async register(body) {
     const c = sb();

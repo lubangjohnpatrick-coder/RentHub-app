@@ -1798,14 +1798,18 @@ const Root = {
         const body = { password };
         if (email.includes('@')) body.email = email; else body.phone = email;
         const d = await API.post('/auth/login', body);
-        this.state.user = d.user; this.toast('Welcome back, ' + d.user.full_name, 'success');
+        this.state.user = d.user;
+        if (!d.user) { this.toast('Logged in but profile could not load. Please refresh.', 'warn'); }
+        else { this.toast('Welcome back, ' + d.user.full_name, 'success'); }
       } else {
         const d = await API.post('/auth/register', {
           full_name: document.getElementById('a-name').value.trim(),
           email, phone, password,
           city: document.getElementById('a-city') ? document.getElementById('a-city').value.trim() : '',
         });
-        this.state.user = d.user; this.toast('Account created 🎉', 'success');
+        this.state.user = d.user;
+        if (!d.user) { this.toast('Account created but profile could not load. Please refresh.', 'warn'); }
+        else { this.toast('Account created 🎉', 'success'); }
       }
       this.state.collections = null;
       this.loadUnread();
