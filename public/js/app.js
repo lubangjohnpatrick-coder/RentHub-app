@@ -1301,9 +1301,20 @@ const Root = {
           <h3>Withdraw Earnings</h3>
           <p style="font-size:12.5px;color:var(--ink-soft)">Owners withdraw earnings to bank, GCash or Maya.</p>
           <div class="form-row" style="margin-top:14px"><label>Amount (₱)</label><input id="wd-amt" type="number" min="0" value="${w.balance}"></div>
-          <div class="form-row"><label>Method</label><select id="wd-method"><option>GCash</option><option>Maya</option><option>Bank transfer</option></select></div>
-          <div class="form-row"><label>Account number</label><input id="wd-acct" placeholder="Account / number"></div>
+          <div class="form-row"><label>Method</label><select id="wd-method" onchange="Root.toggleBankField()"><option>GCash</option><option>Maya</option><option>Bank transfer</option></select></div>
+          <div class="form-row"><label>Account holder name</label><input id="wd-name" placeholder="Full name on the account"></div>
+          <div class="form-row"><label>Account number</label><input id="wd-acct" placeholder="GCash / Maya / bank account number"></div>
+          <div class="form-row" id="wd-bank-row" style="display:none"><label>Bank name</label><input id="wd-bank" placeholder="e.g. BDO, BPI, GCash (bank transfer)"></div>
           <button class="btn btn-primary btn-block" onclick="Root.withdraw()">Request withdrawal</button>
+          <p style="font-size:11px;color:var(--ink-soft);margin-top:8px">Your payout details are sent to the admin for manual remittance. Never share your details outside GoRentHive.</p>
+        </div>
+        <div class="detail-card">
+          <h3>↩️ Refund Preference</h3>
+          <p style="font-size:12.5px;color:var(--ink-soft)">Set where your deposit / refunds should be sent if they cannot go back to your wallet.</p>
+          <div class="form-row" style="margin-top:14px"><label>Method</label><select id="pp-method"><option>GCash</option><option>Maya</option><option>Bank transfer</option></select></div>
+          <div class="form-row"><label>Account holder name</label><input id="pp-name" placeholder="Full name on the account"></div>
+          <div class="form-row"><label>Account number</label><input id="pp-acct" placeholder="GCash / Maya / bank account number"></div>
+          <button class="btn btn-outline btn-block" onclick="Root.saveRefundPreference()">Save refund preference</button>
         </div>
         <div class="detail-card">
           <h3>Transaction History</h3>
@@ -1348,11 +1359,19 @@ const Root = {
     }
     catch (e) { this.toast(e.message, 'error'); }
   },
+  toggleBankField() {
+    const m = document.getElementById('wd-method');
+    const row = document.getElementById('wd-bank-row');
+    if (row) row.style.display = (m && m.value === 'Bank transfer') ? 'block' : 'none';
+  },
   async withdraw() {
     const amount = parseInt(document.getElementById('wd-amt').value, 10);
     const method = document.getElementById('wd-method').value;
     const account = document.getElementById('wd-acct').value;
-    try { await API.post('/wallet/withdraw', { amount, method, account }); this.toast('Withdrawal requested', 'success'); location.reload(); }
+    const account_name = document.getElementById('wd-name').value;
+    const bank_name = document.getElementById('wd-bank') ? document.getElementById('wd-bank').value : '';
+    if (!account_name) { this.toast('Please enter the account holder name', 'error'); return; }
+    try { await API.post('/wallet/withdraw', { amount, method, account, account_name, bank_name }); this.toast('Withdrawal requested', 'success'); location.reload(); }
     catch (e) { this.toast(e.message, 'error'); }
   },
 
@@ -1894,7 +1913,7 @@ const Root = {
     tab = tab || 'analytics';
     const nav = [
       ['analytics', '📊 Overview'], ['users', '👥 Users'], ['listings', '📦 Listings'], ['disputes', '⚖️ Disputes'],
-      ['settings', '⚙️ Fees'], ['refunds', '↩️ Refunds'], ['payouts', '💸 Payouts'], ['audit', '📜 Audit'],
+      ['settings', '⚙️ Fees'], ['refunds', '↩️ Refunds'], ['payouts', '💸 Payouts'], ['account', '🏦 Founder Pay'], ['audit', '📜 Audit'],
     ];
     this.$app.innerHTML = `<div class="wrap" style="padding-top:24px">
       <div class="admin-grid">
@@ -1963,9 +1982,27 @@ const Root = {
           ${r.map(x => `<tr><td>#${x.booking_id}</td><td>${fmtMoney(x.amount)}</td><td>${esc(x.reason)}</td><td><span class="pill ${x.status}">${x.status}</span></td><td>${timeAgo(x.created_at)}</td></tr>`).join('')}</tbody></table></div></div>`;
       } else if (tab === 'payouts') {
         const p = await API.get('/admin/payouts');
-        el().innerHTML = `<div class="detail-card"><h3>Payouts</h3><div class="table-wrap"><table class="table"><thead><tr><th>User</th><th>Amount</th><th>Method</th><th>Status</th><th></th></tr></thead><tbody>
-          ${p.map(x => `<tr><td>#${x.user_id}</td><td>${fmtMoney(x.amount)}</td><td>${esc(x.method || '')}</td><td><span class="pill ${x.status}">${x.status}</span></td>
-          <td><button class="btn btn-outline btn-sm" onclick="Root.payout('${x.id}')">Mark paid</button></td></tr>`).join('')}</tbody></table></div></div>`;
+        el().innerHTML = `<div class="detail-card"><h3>Payouts</h3><div class="table-wrap"><table class="table"><thead><tr><th>User</th><th>Amount</th><th>Method</th><th>Account</th><th>Holder</th><th>Status</th><th></th></tr></thead><tbody>
+          ${p.map(x => `<tr><td>#${x.user_id}</td><td>${fmtMoney(x.amount)}</td><td>${esc(x.method || '')}</td><td>${esc(x.account || '')}${x.bank_name ? ' · ' + esc(x.bank_name) : ''}</td><td>${esc(x.account_name || '')}</td><td><span class="pill ${x.status}">${x.status}</span></td>
+          <td><button class="btn btn-outline btn-sm" onclick="Root.payout('${x.id}','${esc(x.method || '')}','${esc(x.account || '')}')">Mark paid</button></td></tr>`).join('')}</tbody></table></div></div>`;
+      } else if (tab === 'account') {
+        const rev = await API.get('/admin/revenue');
+        const f = rev.founder || {};
+        const fmtM = (method) => ({ gcash: 'GCash', maya: 'Maya', bank: 'Bank transfer' }[method] || method || '—');
+        el().innerHTML = `<div class="detail-card"><h3>🏦 Founder / Platform Payout Account</h3>
+          <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:10px">Where GoRentHive's own earnings should be remitted to you. This is your bank / GCash / Maya account.</p>
+          <div class="form-row"><label>Method</label><select id="fa-method"><option value="${f.method || 'gcash'}" selected>${fmtM(f.method)}</option><option value="gcash">GCash</option><option value="maya">Maya</option><option value="bank">Bank transfer</option></select></div>
+          <div class="form-row"><label>Account holder name</label><input id="fa-name" value="${esc(f.account_name || '')}"></div>
+          <div class="form-row"><label>Account number / GCash / Maya number</label><input id="fa-acct" value="${esc(f.account || '')}"></div>
+          <div class="form-row"><label>Bank name (if bank)</label><input id="fa-bank" value="${esc(f.bank_name || '')}"></div>
+          <button class="btn btn-primary" onclick="Root.saveFounderAccount()">Save payout account</button>
+        </div>
+        <div class="detail-card" style="margin-top:12px"><h3>💰 Total Platform Revenue</h3>
+          <div class="detail-price-big" style="color:var(--green)">${fmtMoney(rev.total)}</div>
+          <p style="font-size:12.5px;color:var(--ink-soft);margin-top:6px">This is what you earn from ${fmtM(f.method || 'the platform')} — <b>${esc(f.account || 'no account set yet')}</b>${f.account_name ? ' (' + esc(f.account_name) + ')' : ''}.</p>
+          <div style="margin-top:12px">${Object.entries(rev.breakdown || {}).map(([k, v]) => `<div class="list-row"><div class="body"><div class="t">${this.revLabel(k)}</div></div><div style="font-weight:800">${fmtMoney(v)}</div></div>`).join('') || '<p style="color:var(--ink-soft);font-size:13px">No revenue recorded yet.</p>'}</div>
+          <p style="font-size:11px;color:var(--orange);margin-top:10px">Note: PayMongo does not auto-payout to your bank. Withdraw your collected balance from your PayMongo dashboard, then record it here as needed.</p>
+        </div>`;
       } else if (tab === 'audit') {
         const a = await API.get('/admin/audit');
         el().innerHTML = `<div class="detail-card"><h3>Audit Log</h3><div class="table-wrap"><table class="table"><thead><tr><th>Action</th><th>Detail</th><th>By</th><th>When</th></tr></thead><tbody>
@@ -2055,6 +2092,29 @@ const Root = {
     try { await API.post('/admin/settings', body); this.toast('Settings saved', 'success'); location.reload(); }
     catch (e) { this.toast(e.message, 'error'); }
   },
+  async saveFounderAccount() {
+    const body = {
+      method: document.getElementById('fa-method').value,
+      account_name: document.getElementById('fa-name').value,
+      account: document.getElementById('fa-acct').value,
+      bank_name: document.getElementById('fa-bank').value,
+    };
+    if (!body.account) { this.toast('Payout account is required', 'error'); return; }
+    try { await API.post('/admin/founder', body); this.toast('Founder payout account saved', 'success'); location.reload(); }
+    catch (e) { this.toast(e.message, 'error'); }
+  },
+  revLabel(k) {
+    const m = { commission: '📊 Commissions', premium: '👑 Premium', featured: '🔥 Featured / Boost', extra_listing: '📦 Extra listings' };
+    return m[k] || k;
+  },
+  async saveRefundPreference() {
+    const method = document.getElementById('pp-method').value;
+    const account = document.getElementById('pp-acct').value;
+    const account_name = document.getElementById('pp-name').value;
+    if (!account) { this.toast('Please enter your account number', 'error'); return; }
+    try { await API.post('/me/payout-preference', { method, account, account_name }); this.toast('Refund preference saved', 'success'); }
+    catch (e) { this.toast(e.message, 'error'); }
+  },
   async broadcast() {
     const title = document.getElementById('bc-title').value;
     const body = document.getElementById('bc-body').value;
@@ -2062,8 +2122,12 @@ const Root = {
     try { const r = await API.post('/admin/broadcast', { title, body }); this.toast('Sent to ' + r.sent + ' users', 'success'); }
     catch (e) { this.toast(e.message, 'error'); }
   },
-  async payout(id) {
-    try { await API.post('/admin/payouts/' + id, { status: 'paid' }); this.toast('Payout marked paid', 'success'); location.reload(); }
+  async payout(id, method, account) {
+    this.modal(`Mark payout #${id} as paid?<div style="font-size:13px;color:var(--ink-soft);margin-top:6px">Remit <b>${fmtMoney(0)}</b>${method ? ' via <b>' + esc(method) + '</b>' : ''}${account ? ' to <b>' + esc(account) + '</b>' : ''}. Confirm only after you have sent the money manually.</div>
+      <button class="btn btn-green btn-block" onclick="Root.payoutConfirm(${id})">Yes, money sent</button>`, 'close');
+  },
+  async payoutConfirm(id) {
+    try { await API.post('/admin/payouts/' + id, { status: 'completed' }); this.toast('Payout completed', 'success'); location.reload(); }
     catch (e) { this.toast(e.message, 'error'); }
   },
   /* ================= INFO / LANDING PAGES ================= */

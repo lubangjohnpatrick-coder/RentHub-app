@@ -167,22 +167,30 @@ router.post('/wallet/withdraw', requireAuth, async (req, res) => {
   try {
     const amount = Math.round(Number(req.body.amount));
     const method = req.body.method || 'bank';
-    const account = req.body.account || '';
+    const account = String(req.body.account || '').trim();
+    const accountName = String(req.body.account_name || '').trim();
+    const bankName = String(req.body.bank_name || (method === 'bank' ? req.body.bank : '') || '').trim();
+    const holder = String(req.body.account_holder || '').trim();
     if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+    if (!account) return res.status(400).json({ error: 'Please provide your payout account number / GCash or Maya number.' });
+    if (!accountName) return res.status(400).json({ error: 'Please provide the account holder name for the payout.' });
+    if (method === 'bank' && !bankName) return res.status(400).json({ error: 'Please provide the bank name.' });
 
     const balance = await ledger.getUserBalance(req.user.id);
     if (balance < amount) return res.status(400).json({ error: 'Insufficient balance' });
 
     const pay = await payment.createPayment({
       userId: req.user.id, bookingId: null, type: 'withdrawal',
-      grossAmount: amount, platformFee: 0, method, meta: { account },
+      grossAmount: amount, platformFee: 0, method, meta: { account, account_name: accountName, bank_name: bankName, account_holder: holder },
     });
     // Debit wallet (negative)
     await ledger.addEntry({ userId: req.user.id, type: 'payout', amount: -amount, meta: { payment_ref: pay.payment_ref } });
     // Record payout request (status pending, admin approves disbursement)
     await svcClient().from('payouts').insert({
       payment_id: pay.id, user_id: req.user.id, amount,
-      status: 'pending', method, account, created_at: now(),
+      status: 'pending', method, account,
+      account_name: accountName, bank_name: bankName, account_holder: holder,
+      created_at: now(),
     });
     const newBalance = await ledger.getUserBalance(req.user.id);
     res.json({ ok: true, payment: pay, balance: newBalance });
@@ -436,7 +444,43 @@ router.post('/admin/disputes/:id', requireAuth, requireAdmin, async (req, res) =
 router.get('/admin/revenue', requireAuth, requireAdmin, async (req, res) => {
   try {
     const rev = await revenue.getRevenue();
-    res.json(rev);
+    const [method, account, accountName, bankName] = await Promise.all([
+      settings.getSetting('founder_payout_method', ''),
+      settings.getSetting('founder_payout_account', ''),
+      settings.getSetting('founder_payout_account_name', ''),
+      settings.getSetting('founder_payout_bank', ''),
+    ]);
+    const founder = { method, account, account_name: accountName, bank_name: bankName };
+    res.json({ ...rev, founder });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Founder payout account (where the platform's own earnings get remitted).
+router.post('/admin/founder', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { method, account, account_name, bank_name } = req.body || {};
+    if (!method || !account) return res.status(400).json({ error: 'Payout method and account are required.' });
+    await Promise.all([
+      settings.setSetting('founder_payout_method', method),
+      settings.setSetting('founder_payout_account', String(account).trim()),
+      settings.setSetting('founder_payout_account_name', String(account_name || '').trim()),
+      settings.setSetting('founder_payout_bank', String(bank_name || '').trim()),
+    ]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Renter/owner preferred payout destination (saved on the user profile).
+router.post('/me/payout-preference', requireAuth, async (req, res) => {
+  try {
+    const { method, account, account_name } = req.body || {};
+    if (!method || !account) return res.status(400).json({ error: 'Method and account are required.' });
+    await svcClient().from('users').update({
+      payout_preference: method,
+      payout_account: String(account).trim(),
+      payout_account_name: String(account_name || '').trim(),
+    }).eq('id', req.user.id);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

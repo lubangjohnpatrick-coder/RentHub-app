@@ -65,6 +65,9 @@ create table if not exists public.users (
   banned_reason text default '',
   last_terms_accepted text default '',
   premium_until bigint,
+  payout_preference text default '',
+  payout_account text default '',
+  payout_account_name text default '',
   created_at bigint not null,
   updated_at bigint not null
 );
@@ -340,6 +343,10 @@ create table if not exists public.payouts (
   status text not null default 'pending',
   method text default '',
   account text default '',
+  account_name text default '',
+  bank_name text default '',
+  account_holder text default '',
+  payout_note text default '',
   created_at bigint not null
 );
 create index if not exists payouts_user_id_idx on public.payouts(user_id);
@@ -352,6 +359,9 @@ create table if not exists public.refunds (
   amount integer not null,
   reason text not null,
   status text not null default 'pending',
+  method text default '',
+  account text default '',
+  account_name text default '',
   created_at bigint not null
 );
 
