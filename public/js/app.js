@@ -268,13 +268,6 @@ const Root = {
             <div class="step"><h4>🤝 Dispute Resolution</h4><p>Report problems with full evidence trail.</p></div>
           </div>
         </section>
-
-        <section class="section">
-          <div class="section-head"><h2>🎁 Referral Program</h2></div>
-          <div class="card-grid">
-            <div class="step"><p>Invite a friend and you <b>both</b> get rental credit when they complete their first rental.</p><p style="margin-top:8px"><a class="btn btn-primary btn-sm" href="#/me">Get my referral link</a></p></div>
-          </div>
-        </section>
       </div>`;
   },
   catCard(c) {
@@ -1411,7 +1404,6 @@ const Root = {
               <button class="btn btn-outline btn-sm" onclick="Root.toggleOwner()">${u.is_owner ? '✓ You are an Owner' : 'Become an Owner'}</button>
             </div>
             <button class="btn btn-primary btn-block" style="margin-top:14px" onclick="location.hash='#/verify'">🔐 Security &amp; Verification</button>
-            ${u.referral_code ? `<div class="top-earn-item" style="margin-top:10px"><div class="grow"><div class="t">🎁 Your referral code</div><div class="s" style="font-size:13px;color:var(--ink-soft)">${esc(u.referral_code)} — friends get ₱50 credit, you get ₱50 when they complete a rental.</div></div><button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${esc(u.referral_code)}');Root.toast('Copied','success')">Copy</button></div>` : ''}
           </div>
 
           <div class="detail-card" style="margin-top:16px">
@@ -1818,8 +1810,6 @@ const Root = {
           <div class="form-row"><label>Platform commission (%)</label><input id="s-percent" type="number" value="${s.platform_percent}"></div>
           <div class="form-row"><label>Minimum platform fee (₱)</label><input id="s-min" type="number" value="${s.platform_min_fee}"></div>
           <div class="form-row"><label>Maximum platform fee (₱, blank = none)</label><input id="s-max" type="number" value="${s.platform_max_fee || ''}"></div>
-          <div class="form-row"><label>Referral reward (₱)</label><input id="s-ref" type="number" value="${s.referral_reward}"></div>
-          <div class="form-row"><label>Referrer reward (₱)</label><input id="s-refr" type="number" value="${s.referrer_reward}"></div>
           <div class="form-grid2">
             <div class="form-row"><label>Featured basic (₱)</label><input id="s-fb" type="number" value="${s.featured_fee_basic}"></div>
             <div class="form-row"><label>Featured plus (₱)</label><input id="s-fp" type="number" value="${s.featured_fee_plus}"></div>
@@ -1922,8 +1912,6 @@ const Root = {
       platform_percent: document.getElementById('s-percent').value,
       platform_min_fee: document.getElementById('s-min').value,
       platform_max_fee: document.getElementById('s-max').value || '',
-      referral_reward: document.getElementById('s-ref').value,
-      referrer_reward: document.getElementById('s-refr').value,
       featured_fee_basic: document.getElementById('s-fb').value,
       featured_fee_plus: document.getElementById('s-fp').value,
       featured_fee_premium: document.getElementById('s-fpm').value,

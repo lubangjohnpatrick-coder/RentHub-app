@@ -898,7 +898,7 @@ router.get('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
 });
 
 router.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
-  const allowed = ['platform_percent', 'platform_min_fee', 'platform_max_fee', 'referral_reward', 'referrer_reward', 'featured_fee_basic', 'featured_fee_plus', 'featured_fee_premium', 'free_cancellation_hours', 'partial_cancellation_hours'];
+  const allowed = ['platform_percent', 'platform_min_fee', 'platform_max_fee', 'featured_fee_basic', 'featured_fee_plus', 'featured_fee_premium', 'free_cancellation_hours', 'partial_cancellation_hours'];
   for (const k of allowed) {
     if (req.body[k] !== undefined) await svcClient().from('admin_settings').upsert({ key: k, value: String(req.body[k]), updated_at: now() }, { onConflict: 'key' });
   }

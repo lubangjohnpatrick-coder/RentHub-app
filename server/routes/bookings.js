@@ -580,23 +580,9 @@ function finalizeBooking(b, depositDeduction, deductionReason, lateFee) {
   // Mark deposit payment released (the renter's original deposit payment is now settled)
   const depoPay = db.prepare('SELECT * FROM payments WHERE booking_id=? AND type=\'deposit\'').get(b.id);
   if (depoPay) db.prepare('UPDATE payments SET status=\'released\', updated_at=? WHERE id=?').run(now, depoPay.id);
-
-  checkReferral(b.renter_id);
 }
 
 function fmtPeso(n) { return '₱' + Number(n || 0).toLocaleString('en-PH'); }
-
-function checkReferral(renterId) {
-  const renter = db.prepare('SELECT * FROM users WHERE id=?').get(renterId);
-  if (!renter || !renter.referred_by_user_id) return;
-  const reward = parseInt(settings.getSetting('referrer_reward', '50'), 10);
-  const ref = db.prepare('SELECT * FROM referrals WHERE referred_id=?').get(renterId);
-  if (ref && ref.status === 'pending') {
-    db.prepare('UPDATE referrals SET status=\'rewarded\' WHERE id=?').run(ref.id);
-    ledger.addEntry({ userId: renter.referred_by_user_id, type: 'referral', amount: reward, meta: { referred: renterId } });
-    notify(renter.referred_by_user_id, 'referral_reward', 'Referral reward', `You earned P${reward} for a completed rental by your referral.`, `/wallet`);
-  }
-}
 
 // ---- Cancel booking ----
 router.post('/:id/cancel', requireAuth, (req, res) => {

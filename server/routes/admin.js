@@ -164,7 +164,7 @@ router.get('/settings', (req, res) => {
 });
 
 router.post('/settings', (req, res) => {
-  const allowed = ['platform_percent', 'platform_min_fee', 'platform_max_fee', 'referral_reward', 'referrer_reward',
+  const allowed = ['platform_percent', 'platform_min_fee', 'platform_max_fee',
     'featured_fee_basic', 'featured_fee_plus', 'featured_fee_premium', 'free_cancellation_hours', 'partial_cancellation_hours'];
   for (const k of allowed) {
     if (req.body[k] !== undefined) settings.setSetting(k, req.body[k]);

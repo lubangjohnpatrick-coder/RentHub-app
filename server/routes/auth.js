@@ -4,12 +4,7 @@ const express = require('express');
 const db = require('../db/schema');
 const { hashPassword, verifyPassword, createSession, destroySession, requireAuth, publicUser } = require('../auth');
 const verify = require('../verify');
-const crypto = require('crypto');
 const router = express.Router();
-
-function genReferral() {
-  return 'RH-' + crypto.randomBytes(3).toString('hex').toUpperCase();
-}
 
 function updateRatingScore(userId) {
   const u = db.prepare('SELECT rating_sum, review_count FROM users WHERE id=?').get(userId);
@@ -21,7 +16,7 @@ router.post('/register', (req, res) => {
   if (!verify.rateLimit('reg:' + (req.ip || 'anon'), 10, 15 * 60 * 1000)) {
     return res.status(429).json({ error: 'Too many sign-ups. Please try again later.' });
   }
-  const { full_name, email, phone, password, city, role, referred_by } = req.body || {};
+  const { full_name, email, phone, password, city, role } = req.body || {};
   if (!full_name || !password) return res.status(400).json({ error: 'Name and password required' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
@@ -31,17 +26,11 @@ router.post('/register', (req, res) => {
   if (existing) return res.status(400).json({ error: 'An account with that email/phone already exists' });
 
   const now = Date.now();
-  const code = genReferral();
-  let referredByUser = null;
-  if (referred_by) {
-    const re = String(referred_by).trim();
-    referredByUser = db.prepare('SELECT id FROM users WHERE referral_code=?').get(re) || null;
-  }
 
   const info = db.prepare(
-    `INSERT INTO users (email, phone, password_hash, full_name, role, city, referral_code, referred_by_user_id, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?)`
-  ).run(email || null, phone || null, hashPassword(password), full_name, role === 'admin' ? 'user' : 'user', city || '', code, referredByUser ? referredByUser.id : null, now, now);
+    `INSERT INTO users (email, phone, password_hash, full_name, role, city, created_at, updated_at)
+     VALUES (?,?,?,?,?,?,?,?)`
+  ).run(email || null, phone || null, hashPassword(password), full_name, role === 'admin' ? 'user' : 'user', city || '', now, now);
 
   const uid = info.lastInsertRowid;
   verify.acceptTerms(uid);
