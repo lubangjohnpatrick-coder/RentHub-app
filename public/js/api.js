@@ -60,7 +60,8 @@ const SupabaseAuth = {
       if (error.status >= 400 && error.status < 500) throw new Error(error.message || 'Invalid credentials');
       throw new Error(error.message || 'Login failed');
     }
-    return { user: (await me()) ? await me() : null };
+    const m = await me();
+    return { user: (m && m.user) ? m.user : null };
   },
   async register(body) {
     const c = sb();
@@ -85,7 +86,7 @@ const SupabaseAuth = {
     // Profile row will be created by the Supabase trigger (handle_new_user).
     if (data.session && data.session.access_token) {
       const u = await me();
-      return { user: u || { id: data.user && data.user.id, full_name: body.full_name, email: body.email, is_owner: false, role: 'user' } };
+      return { user: (u && u.user) ? u.user : { id: data.user && data.user.id, full_name: body.full_name, email: body.email, is_owner: false, role: 'user' } };
     }
     // Email confirmation required
     md.needsConfirm = true;
