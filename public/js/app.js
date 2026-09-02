@@ -129,6 +129,14 @@ const Root = {
         case 'legal': return this.viewLegal(id);
         case 'notifications': return this.guard(() => this.viewNotifications());
         case 'verify': return this.guard(() => this.viewVerify());
+        case 'earn': return this.viewEarn();
+        case 'rent': return this.viewRent();
+        case 'pricing': return this.viewPricing();
+        case 'trust-safety': return this.viewTrustSafety();
+        case 'help': return this.viewHelp();
+        case 'how-it-works': return this.viewHowItWorks();
+        case 'about': return this.viewAbout();
+        case 'contact': return this.viewContact();
         default: this.$app.innerHTML = `<div class="empty"><div class="em">🚫</div><h3>Page not found</h3></div>`;
       }
     } catch (e) {
@@ -1935,6 +1943,288 @@ const Root = {
   async payout(id) {
     try { await API.post('/admin/payouts/' + id, { status: 'paid' }); this.toast('Payout marked paid', 'success'); location.reload(); }
     catch (e) { this.toast(e.message, 'error'); }
+  },
+  /* ================= INFO / LANDING PAGES ================= */
+  viewRent() {
+    const cats = this.state.categories.slice(0, 8);
+    this.$app.innerHTML = `<div class="landing-hero">
+      <div class="wrap">
+        <span class="hero-eyebrow">🐝 Why buy it when you can rent it?</span>
+        <h1>Why Buy It If You <span>Can Rent It?</span></h1>
+        <p class="sub">Get access to the things you need without buying them permanently. Rent from trusted people and businesses near you.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary btn-lg" href="#/explore">🔍 Find Something to Rent</a>
+        </div>
+      </div>
+    </div>
+    <div class="wrap">
+      <section class="section">
+        <div class="section-head"><h2>Browse by Category</h2><a class="more" href="#/categories">View all →</a></div>
+        <div class="cat-grid">${cats.map(c => this.catCard(c)).join('')}</div>
+      </section>
+      <section class="section">
+        <div class="section-head" style="justify-content:center;text-align:center;flex-direction:column">
+          <h2>The Renter Flow</h2>
+          <p class="sub" style="max-width:520px;margin:10px auto 0;color:var(--ink-soft);font-size:15px">Search → Compare → Book → Pay → Rent → Return → Review</p>
+        </div>
+        <div class="steps" style="margin-top:24px">
+          <div class="step"><div class="n">1</div><h4>Search</h4><p>Find exactly what you need near you.</p></div>
+          <div class="step"><div class="n">2</div><h4>Book &amp; Pay</h4><p>Choose your dates, pay securely, refundable deposit held.</p></div>
+          <div class="step"><div class="n">3</div><h4>Rent</h4><p>Pick up or get it delivered. Record condition on handover.</p></div>
+          <div class="step"><div class="n">4</div><h4>Return &amp; Review</h4><p>Return on time, get your deposit back, rate each other.</p></div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="ownbanner">
+          <div><h2>CAN'T FIND IT?</h2><p style="opacity:.9;margin-top:6px">Post what you need and let owners come to you.</p></div>
+          <div><a class="btn btn-primary btn-lg" href="#/requests">POST A RENTAL REQUEST</a></div>
+        </div>
+      </section>
+    </div>`;
+  },
+  viewEarn() {
+    this.$app.innerHTML = `<div class="landing-hero">
+      <div class="wrap">
+        <span class="hero-eyebrow">🐝 Gusto mo bang kumita ng extra income?</span>
+        <h1>May gamit kang <span>nakatengga?</span></h1>
+        <p class="sub">Huwag mong hayaang masayang lang. I-rent mo at kumita ng extra income.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary btn-lg" href="#/list">Start Earning Today →</a>
+        </div>
+      </div>
+    </div>
+    <div class="wrap">
+      <section class="section">
+        <div class="section-head" style="justify-content:center;text-align:center;flex-direction:column">
+          <h2>Turn Your Idle Assets Into Income</h2>
+          <p class="sub" style="max-width:600px;margin:14px auto 0;color:var(--ink-soft);font-size:15px">The things you already own could be exactly what someone else needs today.</p>
+        </div>
+        <div class="steps" style="margin-top:24px">
+          <div class="step"><div class="n">1</div><h4>List Your Item</h4><p>Upload photos, set your daily price, and describe its condition.</p></div>
+          <div class="step"><div class="n">2</div><h4>Get Booked</h4><p>Verified renters find and reserve your item for their dates.</p></div>
+          <div class="step"><div class="n">3</div><h4>Hand It Over</h4><p>Meet at a safe place and record condition on handover.</p></div>
+          <div class="step"><div class="n">4</div><h4>Get Paid</h4><p>Funds land in your wallet after a successful rental.</p></div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>What you can earn with</h2></div>
+        <div class="feature-grid">
+          ${[
+            ['🔨', 'May drill?', 'Rent it out per day.'], ['🔊', 'May speaker?', 'Perfect for events & parties.'], ['⛺', 'May tent?', 'Campers are always looking.'],
+            ['📸', 'May camera?', 'Great for creators & students.'], ['🚗', 'May sasakyan?', 'High demand, higher value.'], ['🏗️', 'Equipment?', 'Tools, generators & more.']
+          ].map(([i, t, d]) => `<div class="feature-card"><div class="icon">${i}</div><h3>${t}</h3><p>${d}</p></div>`).join('')}
+        </div>
+      </section>
+      <section class="section">
+        <div class="ownbanner">
+          <div><h2>READY TO START EARNING?</h2><p style="opacity:.9;margin-top:6px">Listing is free. You only pay a small platform fee per completed rental.</p></div>
+          <div><a class="btn btn-primary btn-lg" href="#/list">Start Earning Today →</a></div>
+        </div>
+      </section>
+    </div>`;
+  },
+  viewPricing() {
+    this.$app.innerHTML = `<div class="landing-hero">
+      <div class="wrap">
+        <span class="hero-eyebrow">🐝 Plans for every kind of owner</span>
+        <h1>Grow Your <span>Rental Business</span></h1>
+        <p class="sub">Start free and upgrade when you're ready. Premium and Enterprise tools help you manage larger inventories and multiple branches.</p>
+      </div>
+    </div>
+    <div class="wrap">
+      <section class="section">
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <h3>Free</h3>
+            <div class="price-tag">₱0<small>/month</small></div>
+            <ul class="features">
+              <li>Up to 15 free listings/month</li>
+              <li>Rent items</li>
+              <li>List items</li>
+              <li>Basic profile</li>
+              <li>Basic booking management</li>
+              <li>Reviews</li>
+              <li>Messaging</li>
+            </ul>
+            <a class="btn btn-outline btn-block" href="#/register">Start Free</a>
+          </div>
+          <div class="pricing-card popular">
+            <h3>Premium</h3>
+            <div class="price-tag">₱299<small>/month</small></div>
+            <ul class="features">
+              <li>Unlimited listings</li>
+              <li>Business storefront</li>
+              <li>Booking calendar</li>
+              <li>Income tracking</li>
+              <li>Advanced analytics</li>
+              <li>Inventory management</li>
+              <li>Promotional tools</li>
+              <li>Priority support</li>
+              <li>Downloadable reports</li>
+            </ul>
+            <a class="btn btn-primary btn-block" href="#/register">Upgrade to Premium</a>
+          </div>
+          <div class="pricing-card">
+            <h3>Enterprise</h3>
+            <div class="price-tag">₱999<small>/month</small><br><small style="font-size:13px">or custom pricing</small></div>
+            <ul class="features">
+              <li>Multiple staff accounts</li>
+              <li>Multiple branches</li>
+              <li>Fleet management</li>
+              <li>Corporate booking</li>
+              <li>Advanced reporting</li>
+              <li>Business tools</li>
+              <li>Dedicated support</li>
+            </ul>
+            <a class="btn btn-dark btn-block" href="#/contact">Contact Sales</a>
+          </div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="detail-card" style="text-align:center">
+          <h3 style="font-size:20px">No hidden fees</h3>
+          <p style="font-size:14px;color:var(--ink-soft);margin:10px auto 0;max-width:560px">Listing is free for basic plans. A small platform fee applies per completed rental. Refundable security deposits are held at cost.</p>
+          <div style="margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <a class="btn btn-primary" href="#/list">Start Earning →</a>
+            <a class="btn btn-outline" href="#/help">See Help Center</a>
+          </div>
+        </div>
+      </section>
+    </div>`;
+  },
+  viewTrustSafety() {
+    const items = [
+      ['🪪', 'Identity Verification', 'Mobile, email & government ID verification with trust levels help confirm who you\'re dealing with.'],
+      ['💰', 'Secure Payments', 'Transactions are processed through supported payment providers and held securely until the rental completes.'],
+      ['🔒', 'Security Deposits', 'Refundable deposits are held separately and returned according to the rental and deposit policy.'],
+      ['📄', 'Rental Agreements', 'Bookings can be supported by digital rental agreements, auto-generated and signed in-app.'],
+      ['⭐', 'Ratings & Reviews', 'See what other users experienced before you book. Both owners and renters leave reviews.'],
+      ['📷', 'Condition Documentation', 'Photo and serial evidence at handover and return protects both owners and renters in a dispute.'],
+      ['🤝', 'Dispute Resolution', 'Issues can be reported and reviewed with a full evidence trail for fair mediation.'],
+      ['🔐', 'Account Security', 'We protect your account and never expose your private verification information or documents.'],
+    ];
+    this.$app.innerHTML = `<div class="landing-hero">
+      <div class="wrap">
+        <span class="hero-eyebrow">🐝 Verified users. Secure transactions. Better rentals.</span>
+        <h1>Your <span>Trust</span> Matters</h1>
+        <p class="sub">A safe, fair and transparent community is at the heart of GoRentHive. Here's how we protect every rental.</p>
+      </div>
+    </div>
+    <div class="wrap">
+      <section class="section">
+        <div class="trust-grid">
+          ${items.map(([i, t, d]) => `<div class="trust-card"><div class="icon">${i}</div><div><h4>${t}</h4><p>${d}</p></div></div>`).join('')}
+        </div>
+      </section>
+      <section class="section"><div class="detail-card"><h3>Safety Tips</h3>
+        <ul style="font-size:13.5px;color:var(--ink-soft);line-height:1.9;padding-left:18px;margin:10px 0 0">
+          <li>Always record the item's condition at handover and return.</li>
+          <li>Prefer public, busy meeting places — confirm them in-app.</li>
+          <li>Keep all payments &amp; communication on GoRentHive.</li>
+          <li>Never share your government ID or passwords.</li>
+          <li>Report any suspicious behavior to our support team.</li>
+        </ul>
+      </div></section>
+    </div>`;
+  },
+  viewHelp() {
+    const faqs = [
+      ['How do I rent an item?', 'Find an item you like, pick your dates, and pay securely. The owner approves, your deposit is held, and you collect or get the item delivered.'],
+      ['How do I list an item?', 'Tap "List Your Item" in the nav, add your item details and daily price, then publish. You will start receiving booking requests right away.'],
+      ['How do payments work?', 'Rental payment and refundable deposit are held securely. The owner is paid after the rental completes and the item is returned.'],
+      ['How do I withdraw earnings?', 'Go to your Wallet and request a withdrawal to your GCash or bank account.'],
+      ['What if an item is damaged?', 'Condition documented at handover/return protects both sides. If disputed, file a report and our team mediates with the full evidence trail.'],
+    ];
+    this.$app.innerHTML = `<div class="landing-hero" style="padding:60px 0 40px">
+      <div class="wrap">
+        <span class="hero-eyebrow">🐝 We're here to help</span>
+        <h1>How Can We Help?</h1>
+        <p class="sub">Answers to the questions we hear most.</p>
+      </div>
+    </div>
+    <div class="wrap">
+      <section class="section"><div class="legal-box">
+        ${faqs.map(f => `<details style="padding:14px 0;border-bottom:1px solid var(--line)"><summary style="font-weight:700;cursor:pointer;font-size:14px">${f[0]}</summary><p style="font-size:13.5px;color:var(--ink-soft);margin:10px 0 0;line-height:1.7">${f[1]}</p></details>`).join('')}
+      </div></section>
+      <section class="section"><div class="ownbanner"><div><h2>STILL NEED HELP?</h2><p style="opacity:.9;margin-top:6px">Our team is happy to assist you.</p></div><div><a class="btn btn-primary btn-lg" href="#/contact">CONTACT SUPPORT</a></div></div></section>
+    </div>`;
+  },
+  viewContact() {
+    this.$app.innerHTML = `<div class="landing-hero" style="padding:60px 0 40px">
+      <div class="wrap">
+        <span class="hero-eyebrow">🐝 We'd love to hear from you</span>
+        <h1>Contact Us</h1>
+        <p class="sub">Our team replies within 24 hours.</p>
+      </div>
+    </div>
+    <div class="wrap">
+      <section class="section"><div class="form-card">
+        <form onsubmit="Root.submitContact(event)">
+          <div class="form-row"><label>Name</label><input id="ct-name" required placeholder="Your name"></div>
+          <div class="form-row"><label>Email</label><input id="ct-email" type="email" required placeholder="you@email.com"></div>
+          <div class="form-row"><label>Subject</label><select id="ct-subject"><option>General Inquiry</option><option>Account Issue</option><option>Booking Problem</option><option>Report a User</option><option>Partnership</option></select></div>
+          <div class="form-row"><label>Message</label><textarea id="ct-msg" rows="5" required placeholder="Tell us more..."></textarea></div>
+          <button class="btn btn-primary btn-block btn-lg" type="submit">Send Message</button>
+        </form>
+        <p class="form-sub" style="text-align:center;margin-top:16px">📧 support@gorenthive.online · Mon-Fri, 9am-6pm PHT</p>
+      </div></section>
+    </div>`;
+  },
+  submitContact(e) {
+    e.preventDefault();
+    this.toast('Message sent! We\'ll reply soon.', 'success');
+    e.target.reset();
+  },
+  viewHowItWorks() {
+    this.$app.innerHTML = `<div class="landing-hero" style="padding:60px 0 40px">
+      <div class="wrap">
+        <span class="hero-eyebrow">🐝 Simple, safe, smart</span>
+        <h1>How GoRentHive Works</h1>
+        <p class="sub">Renting and earning on GoRentHive is simple. Follow these steps to get started.</p>
+      </div>
+    </div>
+    <div class="wrap">
+      <section class="section">
+        <div class="section-head"><h2>How to Rent</h2></div>
+        <div class="steps">
+          <div class="step"><div class="n">1</div><h4>Search</h4><p>Find the item you need near you.</p></div>
+          <div class="step"><div class="n">2</div><h4>Book</h4><p>Choose your dates and send your booking request.</p></div>
+          <div class="step"><div class="n">3</div><h4>Rent</h4><p>Meet the owner or arrange delivery.</p></div>
+          <div class="step"><div class="n">4</div><h4>Return</h4><p>Return the item and complete your rental.</p></div>
+        </div>
+        <div style="text-align:center;margin-top:28px"><a class="btn btn-primary btn-lg" href="#/explore">Start Renting →</a></div>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>How to Earn</h2></div>
+        <div class="steps">
+          <div class="step"><div class="n">1</div><h4>List</h4><p>Upload your item with photos and a description.</p></div>
+          <div class="step"><div class="n">2</div><h4>Set Your Price</h4><p>Choose your rental price and security deposit.</p></div>
+          <div class="step"><div class="n">3</div><h4>Get Bookings</h4><p>Receive requests from verified renters.</p></div>
+          <div class="step"><div class="n">4</div><h4>Earn</h4><p>Complete the rental and receive your payout.</p></div>
+        </div>
+        <div style="text-align:center;margin-top:28px"><a class="btn btn-dark btn-lg" href="#/list">List Your Item →</a></div>
+      </section>
+    </div>`;
+  },
+  viewAbout() {
+    this.$app.innerHTML = `<div class="landing-hero" style="padding:60px 0 40px">
+      <div class="wrap">
+        <span class="hero-eyebrow">🐝 Rent Anything. Earn Everything.</span>
+        <h1>About <span>GoRentHive</span></h1>
+        <p class="sub">The Philippine peer-to-peer rental marketplace.</p>
+      </div>
+    </div>
+    <div class="wrap">
+      <section class="section"><div class="detail-card">
+        <p style="font-size:14px;line-height:1.8;color:var(--ink-soft);margin:0">GoRentHive is a Philippine peer-to-peer rental marketplace. We connect people who have items to spare with people who need them for a short time — without the cost of buying.</p>
+        <p style="font-size:14px;line-height:1.8;color:var(--ink-soft);margin:16px 0 0">Whether it's a camera for your trip, a power drill for a home project, or chairs for your event, GoRentHive makes it easy to rent from your neighbors. And when you're not using your stuff, you can list it and turn idle items into income.</p>
+      </div></section>
+      <section class="section"><div class="steps">
+        <div class="step"><h4>🏠 Community</h4><p>Neighbors helping neighbors rent what they need.</p></div>
+        <div class="step"><h4>♻️ Sustainability</h4><p>Less buying, more sharing. Items stay in use longer.</p></div>
+        <div class="step"><h4>💰 Empowerment</h4><p>Earn from what you already own.</p></div>
+      </div></section>
+    </div>`;
   },
 };
 window.Root = Root;
