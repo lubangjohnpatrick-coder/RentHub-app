@@ -38,6 +38,10 @@ class Gateway {
       const { GcashProvider } = require('./providers/gcash');
       return GcashProvider;
     }
+    if (name === 'paymongo') {
+      const { PaymongoProvider } = require('./providers/paymongo');
+      return PaymongoProvider;
+    }
     return SandboxProvider;
   }
   async charge(payment) {

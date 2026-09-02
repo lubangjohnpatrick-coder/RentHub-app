@@ -136,6 +136,7 @@ const Root = {
         case 'how-it-works': return this.viewHowItWorks();
         case 'about': return this.viewAbout();
         case 'contact': return this.viewContact();
+        case 'paymongo': return this.handlePayMongoCallback(query);
         default: this.$app.innerHTML = `<div class="empty"><div class="em">🚫</div><h3>Page not found</h3></div>`;
       }
     } catch (e) {
@@ -540,6 +541,7 @@ const Root = {
     }
     try {
       const q = await API.post('/bookings/quote', body);
+      this._quoteTotal = q.total;
       document.getElementById('bk-quote').innerHTML = `
         <div class="price-line"><span>${q.days} day${q.days > 1 ? 's' : ''} × ${fmtMoney(l.price_per_day)}</span><span>${fmtMoney(q.rental_fee)}</span></div>
         ${q.delivery_fee ? `<div class="price-line"><span>${lalaLabel} (${q.distance_km} km · ${q.vehicle_type ? q.vehicle_type[0].toUpperCase() + q.vehicle_type.slice(1) : ''})</span><span>${fmtMoney(q.delivery_fee)}</span></div>` : ''}
@@ -588,11 +590,43 @@ const Root = {
         return;
       }
       if (e.status === 402) {
+        // Insufficient wallet balance. Offer direct booking payment via PayMongo,
+        // which credits the wallet with the booking total, then retry the booking.
+        const total = this._quoteTotal;
+        const usePay = await this.tryPayBooking(total, body);
+        if (usePay) {
+          this.toast('Payment received — wallet credited', 'success');
+          // create intent failed or user chose pay path handled inside
+          return;
+        }
         this.toast('Insufficient wallet balance — top up to continue.', 'error');
         location.hash = '#/wallet?tab=topup';
         return;
       }
       this.toast(e.message || 'Booking failed', 'error');
+    }
+  },
+  async tryPayBooking(total, bookBody) {
+    if (!total || total <= 0) return false;
+    const cfg = await API.get('/paymongo/config');
+    if (!cfg.enabled) return false;
+    if (!confirm(`Your wallet balance is not enough for this booking (total ${fmtMoney(total)}).\n\nPay this booking now via GCash/Maya?`)) return false;
+    try {
+      const intent = await API.post('/bookings/paymongo', { total, method: 'gcash' });
+      if (intent.sandbox) {
+        await API.post('/paymongo/confirm', { intent_id: intent.intent_id, payment_id: intent.payment_id });
+        this.toast(`Booking payment received — ${fmtMoney(total)} credited to your wallet (sandbox)`, 'success');
+        // retry the booking now that the wallet has balance
+        try { const d = await API.post('/bookings', bookBody); this.toast('Booking requested — funds held in escrow!', 'success'); location.hash = '#/booking/' + d.booking.id; } catch (e2) { location.hash = '#/wallet'; }
+        return true;
+      }
+      await this.runPayMongoIntent(intent, 'booking');
+      // payment credited wallet -> go to wallet to complete booking
+      this.state._retryBooking = bookBody;
+      return true;
+    } catch (e2) {
+      this.toast('Booking payment failed: ' + (e2.message || 'unknown error'), 'error');
+      return false;
     }
   },
   async toggleFavorite(id) {
@@ -1247,15 +1281,20 @@ const Root = {
   /* ================= WALLET ================= */
   async viewWallet() {
     const w = await API.get('/wallet');
+    let cfg = { enabled: false };
+    try { cfg = await API.get('/paymongo/config'); } catch (e) {}
+    const gatewayNote = cfg.enabled
+      ? 'PayMongo active — payments are processed via GCash/Maya. You will be redirected to complete payment.'
+      : 'Sandbox gateway active — no real money is moved in the demo.';
     this.$app.innerHTML = `<div class="wrap" style="padding-top:24px">
       <div class="detail-card">
         <h3>Wallet</h3>
         <div class="detail-price-big" style="color:var(--green)">${fmtMoney(w.balance)}</div>
         <p style="font-size:13px;color:var(--ink-soft)">Available balance. Top up to pay for rentals through GoRentHive's secure escrow.</p>
         <div class="form-row" style="margin-top:14px"><label>Top-up amount (₱)</label><input id="tp-amt" type="number" min="50" value="1000"></div>
-        <div class="form-row"><label>Via</label><select id="tp-method"><option>GCash</option><option>Maya</option><option>Bank transfer</option><option>Credit card</option></select></div>
+        <div class="form-row"><label>Via</label><select id="tp-method"><option>GCash</option><option>Maya</option></select></div>
         <button class="btn btn-green btn-block" onclick="Root.topUp()">💳 Top up wallet</button>
-        <p style="font-size:11px;color:var(--ink-soft);margin-top:8px">Sandbox gateway active — no real money is moved in the demo.</p>
+        <p style="font-size:11px;color:var(--ink-soft);margin-top:8px">${gatewayNote}</p>
       </div>
       <div class="grid-2-side" style="margin-top:16px">
         <div class="detail-card">
@@ -1288,7 +1327,25 @@ const Root = {
     const amount = parseInt(document.getElementById('tp-amt').value, 10);
     const method = document.getElementById('tp-method').value;
     if (!amount || amount < 50) { this.toast('Enter an amount of at least ₱50', 'error'); return; }
-    try { const d = await API.post('/wallet/topup', { amount, method }); this.toast(`Topped up ${fmtMoney(amount)}`, 'success'); this.state.balance = d.balance; location.reload(); }
+    try {
+      const cfg = await API.get('/paymongo/config');
+      if (cfg.enabled) {
+        const intent = await API.post('/wallet/paymongo/topup', { amount, method });
+        if (intent.sandbox) {
+          await API.post('/paymongo/confirm', { intent_id: intent.intent_id, payment_id: intent.payment_id });
+          this.toast(`Topped up ${fmtMoney(amount)} (sandbox)`, 'success');
+          location.hash = '#/wallet';
+          return;
+        }
+        await this.runPayMongoIntent(intent, 'topup');
+        return;
+      }
+      // Legacy sandbox synchronous top-up (no PayMongo keys)
+      const d = await API.post('/wallet/topup', { amount, method });
+      this.toast(`Topped up ${fmtMoney(amount)}`, 'success');
+      this.state.balance = d.balance;
+      location.reload();
+    }
     catch (e) { this.toast(e.message, 'error'); }
   },
   async withdraw() {
@@ -1297,6 +1354,84 @@ const Root = {
     const account = document.getElementById('wd-acct').value;
     try { await API.post('/wallet/withdraw', { amount, method, account }); this.toast('Withdrawal requested', 'success'); location.reload(); }
     catch (e) { this.toast(e.message, 'error'); }
+  },
+
+  /* ================= PAYMONGO ================= */
+  loadPayMongo(pk) {
+    if (window.Paymongo) return Promise.resolve(window.Paymongo(pk));
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://js.paymongo.com/v1/v3.js';
+      s.onload = () => resolve(window.Paymongo && window.Paymongo(pk));
+      s.onerror = () => reject(new Error('Could not load PayMongo.js'));
+      document.head.appendChild(s);
+    });
+  },
+  // Run the client-side PaymentIntent attach flow. Returns true when paid.
+  async runPayMongoIntent(intent, kind) {
+    try {
+      const cfg = await API.get('/paymongo/config');
+      const pk = cfg.publicKey;
+      if (!pk) throw new Error('PayMongo public key not configured');
+      const paymongo = await this.loadPayMongo(pk);
+      // PayMongo.js: create a payment method for the chosen e-wallet.
+      const paymentMethod = await paymongo.create('payment_method', { type: 'gcash' });
+      const result = await paymongo.attach({
+        paymentIntentId: intent.intent_id,
+        clientKey: intent.client_key,
+        paymentMethod: paymentMethod.id,
+        returnUrl: intent.return_url,
+      });
+      // If PayMongo instructs a redirect, send the user there; the callback
+      // path (handlePayMongoCallback) resumes after payment.
+      if (result && result.nextAction && result.nextAction.redirect && result.nextAction.redirect.url) {
+        window.location.href = result.nextAction.redirect.url;
+        return false;
+      }
+      // No redirect needed (e.g. card or already paid) - confirm directly.
+      await API.post('/paymongo/confirm', { intent_id: intent.intent_id, payment_id: intent.payment_id });
+      this.toast('Payment successful', 'success');
+      this.toastRedirect(kind);
+      return true;
+    } catch (e) {
+      this.toast('Payment failed: ' + (e.message || 'unknown error'), 'error');
+      return false;
+    }
+  },
+  toastRedirect(kind) {
+    if (kind === 'booking') {
+      location.hash = '#/wallet';
+      this.toast('Payment received — wallet credited. You can now confirm your booking.', 'success');
+    } else {
+      location.hash = '#/wallet';
+    }
+  },  // Landing page for PayMongo redirect returns.
+  async handlePayMongoCallback(query) {
+    const intentId = query && query.payment_intent_id;
+    const kind = (query && query.kind) || 'topup';
+    this.$app.innerHTML = `<div class="wrap" style="padding-top:24px"><div class="detail-card"><h3>Payment</h3><p style="color:var(--ink-soft)">Confirming your ${kind === 'booking' ? 'booking ' : ''}payment…</p></div></div>`;
+    try {
+      // Find the payment row tied to this intent by asking the server to confirm.
+      const confirm = await API.post('/paymongo/confirm', { intent_id: intentId || '' });
+      this.toast('Payment confirmed', 'success');
+      if (kind === 'booking' && this.state._retryBooking) {
+        const bookBody = this.state._retryBooking;
+        delete this.state._retryBooking;
+        try {
+          const d = await API.post('/bookings', bookBody);
+          this.toast('Booking requested — funds held in escrow!', 'success');
+          location.hash = '#/booking/' + d.booking.id;
+          return;
+        } catch (e2) {
+          this.toast('Payment received — you can now complete your booking', 'success');
+          location.hash = '#/wallet';
+          return;
+        }
+      }
+      this.toastRedirect(kind);
+    } catch (e) {
+      this.$app.innerHTML = `<div class="wrap" style="padding-top:24px"><div class="detail-card"><h3>Payment</h3><p style="color:var(--red)">${esc(e.message || 'Could not confirm payment')}</p><p><a class="btn btn-outline" href="#/wallet">Back to wallet</a></p></div></div>`;
+    }
   },
 
   /* ================= SELLER DASHBOARD ================= */

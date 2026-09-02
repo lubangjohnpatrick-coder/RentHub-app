@@ -16,6 +16,117 @@ const router = express.Router();
 const now = () => Date.now();
 const json = (s, fb) => { try { return JSON.parse(s || '{}'); } catch (e) { return fb || {}; } };
 
+const { PaymongoProvider, returnUrl } = require('./providers/paymongo');
+
+// ============================================================
+// PAYMONGO â?" public key exposure + intent creation
+// ============================================================
+router.get('/paymongo/config', requireAuth, (req, res) => {
+  res.json({
+    enabled: !!process.env.PAYMONGO_SECRET_KEY && !!process.env.PAYMONGO_PUBLIC_KEY,
+    publicKey: process.env.PAYMONGO_PUBLIC_KEY || '',
+    gateway: (process.env.GATEWAY || 'sandbox').toLowerCase(),
+  });
+});
+
+// Wallet top-up via PayMongo Payment Intent (client-side attach flow).
+// Creates a pending payment row + a PayMongo intent, returns client_key.
+router.post('/wallet/paymongo/topup', requireAuth, async (req, res) => {
+  try {
+    const amount = Math.round(Number(req.body.amount));
+    const method = req.body.method || 'gcash';
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid top-up amount' });
+
+    const pay = await payment.createPayment({
+      userId: req.user.id, bookingId: null, type: 'topup',
+      grossAmount: amount, platformFee: 0, method: 'paymongo',
+      meta: {},
+    });
+    const intent = await PaymongoProvider.createIntent({
+      amountPesos: amount, method,
+      description: 'GoRentHive wallet top-up ' + pay.payment_ref,
+      metadata: { payment_ref: pay.payment_ref, user_id: String(req.user.id) },
+    });
+    const meta = { ...json(pay.meta), paymongo_intent_id: intent.id, paymongo_kind: 'topup', return_url: returnUrl('topup') };
+    await svcClient().from('payments').update({ meta: JSON.stringify(meta), updated_at: now() }).eq('id', pay.id);
+
+    if (intent.sandbox) {
+      res.json({ ok: true, sandbox: true, payment_id: pay.id, client_key: intent.client_key, intent_id: intent.id, amount });
+      return;
+    }
+    res.json({ ok: true, payment_id: pay.id, client_key: intent.client_key, intent_id: intent.id, amount, return_url: meta.return_url });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Direct booking payment via PayMongo: pays the booking total into the wallet
+// so the existing wallet-escrow booking flow can proceed. Returns the intent
+// plus the booking total so the client can confirm.
+router.post('/bookings/paymongo', requireAuth, async (req, res) => {
+  try {
+    const amount = Math.round(Number(req.body.total));
+    const method = req.body.method || 'gcash';
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid booking total' });
+
+    const pay = await payment.createPayment({
+      userId: req.user.id, bookingId: null, type: 'booking_pay',
+      grossAmount: amount, platformFee: 0, method: 'paymongo',
+      meta: { booking_draft: req.body },
+    });
+    const intent = await PaymongoProvider.createIntent({
+      amountPesos: amount, method,
+      description: 'GoRentHive booking payment ' + pay.payment_ref,
+      metadata: { payment_ref: pay.payment_ref, user_id: String(req.user.id) },
+    });
+    const meta = { ...json(pay.meta), paymongo_intent_id: intent.id, paymongo_kind: 'booking', return_url: returnUrl('booking') };
+    await svcClient().from('payments').update({ meta: JSON.stringify(meta), updated_at: now() }).eq('id', pay.id);
+    res.json({ ok: true, sandbox: !!intent.sandbox, payment_id: pay.id, client_key: intent.client_key, intent_id: intent.id, amount, return_url: meta.return_url });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Client confirm: after PayMongo redirect the browser may beat the webhook.
+// Re-checks the intent (or falls back to the stored payment row) and, if it
+// succeeded, settles the wallet credit. Idempotent.
+router.post('/paymongo/confirm', requireAuth, async (req, res) => {
+  try {
+    const intentId = req.body.intent_id;
+    const paymentId = req.body.payment_id;
+    const { findPaymentByIntent, settlePayment } = require('./paymongo-webhook');
+
+    let payment = null;
+    if (paymentId) {
+      const { data, error } = await svcClient().from('payments').select('*').eq('id', paymentId).limit(1).maybeSingle();
+      if (!error && data) { try { data.meta = JSON.parse(data.meta || '{}'); } catch (e) { data.meta = {}; } payment = data; }
+    }
+    if (!payment && intentId) payment = await findPaymentByIntent(intentId);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+    if (payment.status === 'succeeded') {
+      const balance = await ledger.getUserBalance(payment.user_id);
+      return res.json({ ok: true, status: 'succeeded', balance });
+    }
+
+    // Re-query the intent from PayMongo to confirm.
+    let intentStatus = null;
+    if (intentId && PaymongoProvider.configured()) {
+      const intent = await PaymongoProvider.getIntent(intentId);
+      intentStatus = intent && intent.status;
+    }
+    // In sandbox (no PayMongo keys) the fake intent is treated as paid once
+    // the client confirms, so the demo remains functional.
+    if (intentStatus === 'succeeded' || !PaymongoProvider.configured()) {
+      const settle = await settlePayment(payment, intentId, intentId);
+      const balance = await ledger.getUserBalance(payment.user_id);
+      return res.json({ ok: true, status: 'succeeded', settled: settle.status, balance });
+    }
+    res.json({ ok: true, status: intentStatus || 'pending', payment_status: payment.status });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ============================================================
 // WALLET
 // ============================================================

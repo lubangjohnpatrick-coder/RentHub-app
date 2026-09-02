@@ -13,6 +13,14 @@ services:
         value: 10000
       - key: GATEWAY
         value: sandbox
+      - key: PAYMONGO_SECRET_KEY
+        sync: false
+      - key: PAYMONGO_PUBLIC_KEY
+        sync: false
+      - key: PAYMONGO_WEBHOOK_SECRET
+        sync: false
+      - key: PUBLIC_BASE_URL
+        value: https://gorenthive.online
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY

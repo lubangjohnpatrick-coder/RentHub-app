@@ -16,6 +16,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+
+// PayMongo webhook must see the RAW body for signature verification, so it is
+// registered before the global JSON parser.
+const { handleWebhook } = require('./paymongo-webhook');
+app.post('/api/paymongo/webhook', express.raw({ type: 'application/json' }), handleWebhook);
+
 app.use(express.json({ limit: '2mb' }));
 
 // root health
