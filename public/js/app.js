@@ -1627,7 +1627,7 @@ const Root = {
       <p class="form-sub" style="text-align:center">${isLogin ? 'Log in to continue renting & earning.' : 'Join GoRentHive. Need it? Rent it. Own it? Earn from it.'}</p>
       ${isLogin ? '' : `<div class="form-row"><label>Full name</label><input id="a-name" placeholder="Juan Dela Cruz"></div>`}
       <div class="form-row"><label>Email</label><input id="a-email" type="email" placeholder="you@email.com"></div>
-      <div class="form-row"><label>Phone (optional)</label><input id="a-phone" placeholder="09xxxxxxxxx"></div>
+      ${isLogin ? '' : `<div class="form-row"><label>Phone (optional)</label><input id="a-phone" placeholder="09xxxxxxxxx"></div>`}
       <div class="form-row"><label>Password</label><input id="a-pass" type="password" placeholder="••••••••"></div>
       ${isLogin ? '' : `<div class="form-row"><label>City</label><input id="a-city" placeholder="e.g. General Trias"></div>`}
       <button class="btn btn-primary btn-block btn-lg" onclick="Root.doAuth('${mode}')">${isLogin ? 'Log in →' : 'Create account →'}</button>
