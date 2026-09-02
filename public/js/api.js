@@ -125,6 +125,16 @@ async function serverRequest(target, { method = 'GET', body, token } = {}) {
   const res = await fetch(base + target, opts);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401) {
+      try { await sb()?.auth?.signOut(); } catch (e) {}
+      if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/login') {
+        try { window.location.hash = '#/login'; } catch (e) {}
+      }
+      const err = new Error('Not authenticated');
+      err.status = 401;
+      err.code = data.code;
+      throw err;
+    }
     const err = new Error(data.error || 'Request failed');
     err.status = res.status;
     err.code = data.code;
