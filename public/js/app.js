@@ -1779,11 +1779,13 @@ const Root = {
       <div class="form-title" style="text-align:center">${isLogin ? 'Welcome back' : 'Create your account'}</div>
       <p class="form-sub" style="text-align:center">${isLogin ? 'Log in to continue renting & earning.' : 'Join GoRentHive. Need it? Rent it. Own it? Earn from it.'}</p>
       ${isLogin ? '' : `<div class="form-row"><label>Full name</label><input id="a-name" placeholder="Juan Dela Cruz"></div>`}
-      <div class="form-row"><label>Email</label><input id="a-email" type="email" placeholder="you@email.com"></div>
-      ${isLogin ? '' : `<div class="form-row"><label>Phone (optional)</label><input id="a-phone" placeholder="09xxxxxxxxx"></div>`}
-      <div class="form-row"><label>Password</label><input id="a-pass" type="password" placeholder="••••••••"></div>
+      <form id="auth-form" onsubmit="event.preventDefault(); Root.doAuth('${mode}')">
+      <div class="form-row"><label>Email</label><input id="a-email" type="email" placeholder="you@email.com" autocomplete="email"></div>
+      ${isLogin ? '' : `<div class="form-row"><label>Phone (optional)</label><input id="a-phone" placeholder="09xxxxxxxxx" autocomplete="tel"></div>`}
+      <div class="form-row"><label>Password</label><input id="a-pass" type="password" placeholder="••••••••" autocomplete="${isLogin ? 'current-password' : 'new-password'}"></div>
       ${isLogin ? '' : `<div class="form-row"><label>City</label><input id="a-city" placeholder="e.g. General Trias"></div>`}
-      <button class="btn btn-primary btn-block btn-lg" onclick="Root.doAuth('${mode}')">${isLogin ? 'Log in →' : 'Create account →'}</button>
+      <button type="submit" class="btn btn-primary btn-block btn-lg">${isLogin ? 'Log in →' : 'Create account →'}</button>
+      </form>
       <div class="alt">${isLogin ? `New to GoRentHive? <a href="#/register">Create an account</a>` : `Already have an account? <a href="#/login">Log in</a>`}</div>
     </div></div>`;
   },
