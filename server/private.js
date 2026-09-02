@@ -234,7 +234,7 @@ router.post('/bookings/:id/approve', requireAuth, async (req, res) => {
   if (b.owner_id !== req.user.id && req.user.role !== 'admin') return res.status(403).json({ error: 'Not your booking' });
   if (b.status !== 'pending') return res.status(400).json({ error: 'Booking is not pending' });
   await svcClient().from('bookings').update({ status: 'approved', updated_at: now() }).eq('id', b.id);
-  await notify(b.renter_id, 'booking', 'Booking approved', 'Your booking #' + b.booking_ref + ' was approved by the owner.', '#/bookings/' + b.id);
+  await notify(b.renter_id, 'booking', 'Booking approved', 'Your booking #' + b.booking_ref + ' was approved by the owner.', '#/booking/' + b.id);
   res.json(await bookingFull({ ...b, status: 'approved' }));
 });
 
@@ -248,7 +248,7 @@ router.post('/bookings/:id/reject', requireAuth, async (req, res) => {
   try {
     await ledger.addEntry({ bookingId: b.id, userId: b.renter_id, type: 'refund', amount: b.rental_fee + b.delivery_fee + b.security_deposit, meta: { reason: 'booking_rejected' } });
   } catch (e) { /* escrow refund handled */ }
-  await notify(b.renter_id, 'booking', 'Booking rejected', 'The owner rejected your booking.', '#/bookings/' + b.id);
+  await notify(b.renter_id, 'booking', 'Booking rejected', 'The owner rejected your booking.', '#/booking/' + b.id);
   res.json(await bookingFull({ ...b, status: 'rejected' }));
 });
 

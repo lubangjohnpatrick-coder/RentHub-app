@@ -111,7 +111,6 @@ const Root = {
         case 'explore': return this.viewExplore(query);
         case 'categories': return this.viewCategories();
         case 'listing': return this.viewListing(id);
-        case 'book': return this.viewBooking(id);
         case 'booking': return this.viewBookingDetail(id);
         case 'list': return this.guard(() => this.viewListForm(id || null));
         case 'owner': return this.guard(() => this.viewOwnerDashboard());
@@ -2026,9 +2025,9 @@ const Root = {
   viewPricing() {
     this.$app.innerHTML = `<div class="landing-hero">
       <div class="wrap">
-        <span class="hero-eyebrow">🐝 Plans for every kind of owner</span>
+        <span class="hero-eyebrow">🐝 Simple, honest pricing</span>
         <h1>Grow Your <span>Rental Business</span></h1>
-        <p class="sub">Start free and upgrade when you're ready. Premium and Enterprise tools help you manage larger inventories and multiple branches.</p>
+        <p class="sub">Start free and upgrade when you're ready. Only pay for what you use — with no lock-in.</p>
       </div>
     </div>
     <div class="wrap">
@@ -2036,54 +2035,46 @@ const Root = {
         <div class="pricing-grid">
           <div class="pricing-card">
             <h3>Free</h3>
-            <div class="price-tag">₱0<small>/month</small></div>
+            <div class="price-tag">₱0<small>/forever</small></div>
             <ul class="features">
-              <li>Up to 15 free listings/month</li>
+              <li>Up to 15 active listings/month</li>
               <li>Rent items</li>
               <li>List items</li>
-              <li>Basic profile</li>
+              <li>Basic profile &amp; reviews</li>
               <li>Basic booking management</li>
-              <li>Reviews</li>
               <li>Messaging</li>
             </ul>
             <a class="btn btn-outline btn-block" href="#/register">Start Free</a>
           </div>
           <div class="pricing-card popular">
             <h3>Premium</h3>
-            <div class="price-tag">₱299<small>/month</small></div>
+            <div class="price-tag">₱1,499<small>/year</small></div>
             <ul class="features">
               <li>Unlimited listings</li>
-              <li>Business storefront</li>
-              <li>Booking calendar</li>
-              <li>Income tracking</li>
-              <li>Advanced analytics</li>
-              <li>Inventory management</li>
-              <li>Promotional tools</li>
+              <li>Seller dashboard</li>
+              <li>Track sales, gross &amp; net income</li>
+              <li>Business insights to grow</li>
               <li>Priority support</li>
-              <li>Downloadable reports</li>
             </ul>
-            <a class="btn btn-primary btn-block" href="#/register">Upgrade to Premium</a>
+            <a class="btn btn-primary btn-block" href="#/premium">Upgrade to Premium</a>
           </div>
           <div class="pricing-card">
-            <h3>Enterprise</h3>
-            <div class="price-tag">₱999<small>/month</small><br><small style="font-size:13px">or custom pricing</small></div>
+            <h3>Boost</h3>
+            <div class="price-tag">₱49<small>/one-time</small></div>
             <ul class="features">
-              <li>Multiple staff accounts</li>
-              <li>Multiple branches</li>
-              <li>Fleet management</li>
-              <li>Corporate booking</li>
-              <li>Advanced reporting</li>
-              <li>Business tools</li>
-              <li>Dedicated support</li>
+              <li>Feature your listing</li>
+              <li>Higher visibility in search</li>
+              <li>Promote any item anytime</li>
+              <li>Per-listing, no subscription</li>
             </ul>
-            <a class="btn btn-dark btn-block" href="#/contact">Contact Sales</a>
+            <a class="btn btn-dark btn-block" href="#/list">Boost a Listing</a>
           </div>
         </div>
       </section>
       <section class="section">
         <div class="detail-card" style="text-align:center">
-          <h3 style="font-size:20px">No hidden fees</h3>
-          <p style="font-size:14px;color:var(--ink-soft);margin:10px auto 0;max-width:560px">Listing is free for basic plans. A small platform fee applies per completed rental. Refundable security deposits are held at cost.</p>
+          <h3 style="font-size:20px">Simple, transparent fees</h3>
+          <p style="font-size:14px;color:var(--ink-soft);margin:10px auto 0;max-width:560px">A small 8% platform fee (min ₱20) applies per completed rental. Going over the free listing limit costs ₱10 per extra listing. Refundable security deposits are held at cost.</p>
           <div style="margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
             <a class="btn btn-primary" href="#/list">Start Earning →</a>
             <a class="btn btn-outline" href="#/help">See Help Center</a>
@@ -2209,7 +2200,7 @@ const Root = {
   viewAbout() {
     this.$app.innerHTML = `<div class="landing-hero" style="padding:60px 0 40px">
       <div class="wrap">
-        <span class="hero-eyebrow">🐝 Rent Anything. Earn Everything.</span>
+        <span class="hero-eyebrow">🐝 Need it? Rent it. Own it? Earn from it.</span>
         <h1>About <span>GoRentHive</span></h1>
         <p class="sub">The Philippine peer-to-peer rental marketplace.</p>
       </div>
