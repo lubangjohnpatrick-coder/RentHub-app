@@ -114,9 +114,7 @@ router.post('/paymongo/confirm', requireAuth, async (req, res) => {
       const intent = await PaymongoProvider.getIntent(intentId);
       intentStatus = intent && intent.status;
     }
-    // In sandbox (no PayMongo keys) the fake intent is treated as paid once
-    // the client confirms, so the demo remains functional.
-    if (intentStatus === 'succeeded' || !PaymongoProvider.configured()) {
+    if (intentStatus === 'succeeded') {
       const settle = await settlePayment(payment, intentId, intentId);
       const balance = await ledger.getUserBalance(payment.user_id);
       return res.json({ ok: true, status: 'succeeded', settled: settle.status, balance });
@@ -132,6 +130,9 @@ router.post('/paymongo/confirm', requireAuth, async (req, res) => {
 // ============================================================
 router.post('/wallet/topup', requireAuth, async (req, res) => {
   try {
+    if (!PaymongoProvider.configured()) {
+      return res.status(403).json({ error: 'Payment gateway is not configured; wallet top-up is disabled' });
+    }
     const amount = Math.round(Number(req.body.amount));
     const method = req.body.method || 'sandbox'; // 'sandbox' | 'gcash'
     if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid top-up amount' });

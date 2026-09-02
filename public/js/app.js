@@ -1359,11 +1359,9 @@ const Root = {
         await this.runPayMongoIntent(intent, 'topup');
         return;
       }
-      // Legacy sandbox synchronous top-up (no PayMongo keys)
-      const d = await API.post('/wallet/topup', { amount, method });
-      this.toast(`Topped up ${fmtMoney(amount)}`, 'success');
-      this.state.balance = d.balance;
-      location.reload();
+      // Payment gateway not configured — block free/instant top-up
+      this.toast('Wallet top-up is unavailable: payment gateway is not configured yet.', 'error');
+      return;
     }
     catch (e) { this.toast(e.message, 'error'); }
   },
