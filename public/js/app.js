@@ -456,7 +456,7 @@ const Root = {
                 <a class="btn btn-outline btn-sm" href="#/profile/${l.owner.id}">View</a>
               </div>
               <div style="display:flex;gap:8px;margin-top:8px">
-                ${u ? `<button class="btn btn-outline grow" onclick="Root.openChat(${l.owner.id}, ${l.id})">💬 Message Owner</button>` : `<a class="btn btn-outline grow" href="#/login">💬 Message Owner</a>`}
+                ${u ? `<button class="btn btn-outline grow" onclick="Root.openChat('${l.owner.id}', ${l.id})">💬 Message Owner</button>` : `<a class="btn btn-outline grow" href="#/login">💬 Message Owner</a>`}
                 <button class="btn btn-outline" onclick="Root.toggleFavorite(${l.id})">♡</button>
               </div>
             </div>
@@ -880,7 +880,7 @@ const Root = {
     }
     if (b.status === 'completed' && (isRenter || isOwner)) {
       const other = isRenter ? 'owner' : 'renter';
-      actions.push(`<button class="btn btn-outline btn-block" onclick="Root.rateOtherParty(${b.id}, ${isRenter ? b.owner.id : b.renter_id})">⭐ Rate the ${other}</button>`);
+      actions.push(`<button class="btn btn-outline btn-block" onclick="Root.rateOtherParty(${b.id}, '${isRenter ? b.owner.id : b.renter_id}')">⭐ Rate the ${other}</button>`);
     }
     if (!actions.length) actions.push(`<p class="alt">No actions available for this booking.</p>`);
     return actions.join('');
@@ -892,7 +892,7 @@ const Root = {
           ${[1,2,3,4,5].map(n => `<button class="star" data-v="${n}" onclick="Root.setReviewStar(${n})">★</button>`).join('')}
         </div></div>
       <div class="form-row"><label>Comment (optional)</label><textarea id="rv-comment" placeholder="Share how the rental went"></textarea></div>
-      <button class="btn btn-primary btn-block" onclick="Root.submitReview(${bookingId}, ${otherUserId})">Submit rating</button>`, 'close');
+      <button class="btn btn-primary btn-block" onclick="Root.submitReview(${bookingId}, '${otherUserId}')">Submit rating</button>`, 'close');
   },
   async setReviewStar(n) {
     const el = document.getElementById('rv-stars');
@@ -1260,8 +1260,8 @@ const Root = {
       </div>`).join('') || '<p style="color:var(--ink-soft);font-size:13px;text-align:center">No messages yet. Say hello!</p>'}
     </div>
     <div class="chat-input">
-      <input id="chat-in" placeholder="Type a message..." onkeydown="if(event.key==='Enter')Root.sendChat(${other.id},${bookingId || 'null'})">
-      <button onclick="Root.sendChat(${other.id},${bookingId || 'null'})">Send</button>
+      <input id="chat-in" placeholder="Type a message..." onkeydown="if(event.key==='Enter')Root.sendChat('${other.id}',${bookingId || 'null'})">
+      <button onclick="Root.sendChat('${other.id}',${bookingId || 'null'})">Send</button>
     </div>`;
   },
   async sendChat(receiverId, bookingId) {
@@ -1765,7 +1765,7 @@ const Root = {
           <div><div style="font-size:20px;font-weight:800">${esc(owner.full_name)} ${owner.identity_status === 'verified' ? '<span class="verified-chip">✓ Verified</span>' : ''}</div>
           <div style="font-size:13px;color:var(--ink-soft)">${stars(owner.vessel_rating)} ${Number(owner.vessel_rating).toFixed(1)} · ${owner.successful_rentals} successful rentals · Level ${owner.identity_level}</div></div>
         </div>
-        ${this.state.user && this.state.user.id !== owner.id ? `<button class="btn btn-primary btn-block" style="margin-top:14px" onclick="Root.openChat(${owner.id},null)">💬 Message</button>` : ''}
+        ${this.state.user && this.state.user.id !== owner.id ? `<button class="btn btn-primary btn-block" style="margin-top:14px" onclick="Root.openChat('${owner.id}',null)">💬 Message</button>` : ''}
       </div>
       <div class="section"><div class="section-head"><h2>Listed Items</h2></div><div class="card-grid">${lists.map(l => this.listingCard(l)).join('') || '<p style="color:var(--ink-soft)">No listings.</p>'}</div></div>
     </div>`;
@@ -1957,7 +1957,7 @@ const Root = {
           ${users.map(u => `<tr><td>${esc(u.full_name)}</td><td>${esc(u.email || u.phone || '')}</td><td>${esc(u.city || '')}</td>
             <td><span class="pill ${u.identity_status === 'verified' ? 'verified' : 'pending'}">${u.identity_status} · L${u.identity_level}</span></td>
             <td>${u.role === 'admin' ? 'Admin' : (u.is_owner ? 'Owner' : 'User')}</td><td>${fmtMoney(u.wallet_balance)}</td>
-            <td><button class="btn btn-outline btn-sm" onclick="Root.adminUser(${u.id})">Manage</button></td></tr>`).join('')}
+            <td><button class="btn btn-outline btn-sm" onclick="Root.adminUser('${u.id}')">Manage</button></td></tr>`).join('')}
           </tbody></table></div></div>`;
       } else if (tab === 'listings') {
         const lists = await API.get('/admin/listings');
@@ -2030,7 +2030,7 @@ const Root = {
     this.modal(`Manage User #${id}
       <div class="form-row"><label>Set identity</label><select id="au-ident"><option value="">—</option><option value="verified">Verified (Level 3)</option><option value="pending">Pending</option><option value="rejected">Rejected</option></select></div>
       <div class="form-row"><label>Role</label><select id="au-role"><option value="user">User</option><option value="admin">Admin</option></select></div>
-      <button class="btn btn-primary btn-block" onclick="Root.adminUserSave(${id})">Save</button>`, 'close');
+      <button class="btn btn-primary btn-block" onclick="Root.adminUserSave('${id}')">Save</button>`, 'close');
   },
   async adminUserSave(id) {
     const identity_status = document.getElementById('au-ident').value;
