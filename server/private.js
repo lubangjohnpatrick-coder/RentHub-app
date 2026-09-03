@@ -103,6 +103,40 @@ async function fullListingRow(row) {
   });
 }
 
+// Batch-hydrate many listing rows with a handful of .in() queries instead of
+// N+1 round-trips. Faithfully reproduces fullListingRow's shape (images sorted
+// by sort_order, owner, category, latest 5 reviews). listingRow reads
+// row.avg_rating directly, so no extra rating query is needed.
+async function hydrateListings(rows) {
+  rows = rows || [];
+  if (!rows.length) return [];
+  const listingIds = [...new Set(rows.map((r) => r.id).filter(Boolean))];
+  const ownerIds = [...new Set(rows.map((r) => r.owner_id).filter(Boolean))];
+  const catIds = [...new Set(rows.map((r) => r.category_id).filter(Boolean))];
+  const [imgRes, ownerRes, catRes, revRes] = await Promise.all([
+    svcClient().from('listing_images').select('listing_id,url,sort_order').in('listing_id', listingIds),
+    ownerIds.length ? svcClient().from('users').select('*').in('id', ownerIds) : Promise.resolve({ data: [] }),
+    catIds.length ? svcClient().from('categories').select('*').in('id', catIds) : Promise.resolve({ data: [] }),
+    svcClient().from('listing_reviews').select('listing_id,rating,comment,created_at,author_id').in('listing_id', listingIds),
+  ]);
+  const imagesByListing = {};
+  for (const i of imgRes.data || []) (imagesByListing[i.listing_id] = imagesByListing[i.listing_id] || []).push(i);
+  const ownerMap = new Map((ownerRes.data || []).map((u) => [u.id, u]));
+  const catMap = new Map((catRes.data || []).map((c) => [c.id, c]));
+  const revsByListing = {};
+  for (const rv of revRes.data || []) (revsByListing[rv.listing_id] = revsByListing[rv.listing_id] || []).push(rv);
+  const imagesOf = (id) => (imagesByListing[id] || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((i) => i.url);
+  const reviewsOf = (id) => (revsByListing[id] || []).slice().sort((a, b) => b.created_at - a.created_at).slice(0, 5)
+    .map((r) => ({ rating: r.rating, comment: r.comment, created_at: r.created_at, author_id: r.author_id }));
+  return rows.map((row) => listingRow({
+    row,
+    images: imagesOf(row.id),
+    category: catMap.get(row.category_id) || null,
+    owner: ownerMap.get(row.owner_id) || null,
+    reviews: reviewsOf(row.id),
+  }));
+}
+
 // ---- AUTH (service-side: returns own private fields via service_role)
 router.get('/auth/me', requireAuth, async (req, res) => {
   const full = await svcClient().from('users').select('*').eq('id', req.user.id).single();
@@ -562,18 +596,20 @@ router.get('/listings', async (req, res) => {
     else if (sort === 'price_desc') rows.sort((a, b) => b.price_per_day - a.price_per_day);
     else if (sort === 'popular') rows.sort((a, b) => (b.rental_count || 0) - (a.rental_count || 0));
     else if (sort === 'rating') {
+      const ids = rows.map((r) => r.id);
+      const { data: allRates } = await svcClient().from('listing_reviews').select('listing_id,rating').in('listing_id', ids);
+      const ratesByListing = {};
+      for (const rr of allRates || []) (ratesByListing[rr.listing_id] = ratesByListing[rr.listing_id] || []).push(rr.rating);
       const ratings = {};
-      for (const r of rows) {
-        const all = await svcClient().from('listing_reviews').select('rating').eq('listing_id', r.id);
-        const rr = all.data || [];
-        ratings[r.id] = rr.length ? rr.reduce((s, x) => s + x.rating, 0) / rr.length : 0;
+      for (const id of ids) {
+        const arr = ratesByListing[id] || [];
+        ratings[id] = arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
       }
       rows.sort((a, b) => ratings[b.id] - ratings[a.id]);
     } else {
       rows.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || (b.created_at || 0) - (a.created_at || 0));
     }
-    const out = [];
-    for (const r of rows.slice(0, 100)) out.push(await fullListingRow(r));
+    const out = await hydrateListings(rows.slice(0, 100));
     res.json(out);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -586,16 +622,18 @@ router.get('/listings/collections', async (req, res) => {
       svcClient().from('listings').select('*').eq('status', 'active').eq('is_bundle', true).limit(8),
       svcClient().from('users').select('*').eq('is_owner', true),
     ]);
-    const trending = [], featured = [], bundles = [];
-    for (const r of trend.data || []) trending.push(await fullListingRow(r));
+    const trending = await hydrateListings(trend.data || []);
     const feats = (feat.data || []).sort(() => Math.random() - 0.5).slice(0, 8);
-    for (const r of feats) featured.push(await fullListingRow(r));
-    for (const r of bun.data || []) bundles.push(await fullListingRow(r));
+    const featured = await hydrateListings(feats);
+    const bundles = await hydrateListings(bun.data || []);
     const topOwners = [];
     const withRentals = (owners.data || []).filter((o) => o.successful_rentals > 0).sort((a, b) => (b.vessel_rating || 0) - (a.vessel_rating || 0)).slice(0, 8);
-    for (const o of withRentals) {
-      const { count } = await svcClient().from('listings').select('id', { count: 'exact', head: true }).eq('owner_id', o.id).eq('status', 'active');
-      topOwners.push({ ...publicUser(o), itemCount: count || 0 });
+    const ownerIds = withRentals.map((o) => o.id);
+    if (ownerIds.length) {
+      const { data: activeRows } = await svcClient().from('listings').select('owner_id').eq('status', 'active').in('owner_id', ownerIds);
+      const items = {};
+      for (const x of activeRows || []) items[x.owner_id] = (items[x.owner_id] || 0) + 1;
+      for (const o of withRentals) topOwners.push({ ...publicUser(o), itemCount: items[o.id] || 0 });
     }
     res.json({ trending, featured, bundles, topOwners });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -624,10 +662,8 @@ router.get('/listings/:id/related', async (req, res) => {
   try {
     const { data } = await svcClient().from('listings').select('*').eq('id', req.params.id).single();
     if (!data) return res.json([]);
-    const { data: rel } = await svcClient().from('listings').select('*').eq('status', 'active').eq('category_id', data.category_id).neq('id', data.id).order('rental_count', { ascending: false }).limit(6);
-    const out = [];
-    for (const r of rel || []) out.push(await fullListingRow(r));
-    res.json(out);
+    const rel = await svcClient().from('listings').select('*').eq('status', 'active').eq('category_id', data.category_id).neq('id', data.id).order('rental_count', { ascending: false }).limit(6);
+    res.json(await hydrateListings(rel.data || []));
   } catch (e) { res.json([]); }
 });
 
@@ -880,12 +916,16 @@ router.post('/admin/users/:id', requireAuth, requireAdmin, async (req, res) => {
 
 router.get('/admin/listings', requireAuth, requireAdmin, async (req, res) => {
   const { data } = await svcClient().from('listings').select('*').order('created_at', { ascending: false }).limit(200);
-  const out = [];
-  for (const l of data || []) {
-    const { data: o } = await svcClient().from('users').select('full_name').eq('id', l.owner_id).maybeSingle();
-    out.push({ id: l.id, title: l.title, status: l.status, price_per_day: l.price_per_day, featured: !!l.featured, rental_count: l.rental_count, owner_id: l.owner_id, owner_name: o.data?.full_name || '', category: 'cat-' + l.category_id });
+  const listings = data || [];
+  const ownerIds = [...new Set(listings.map((l) => l.owner_id).filter(Boolean))];
+  const nameMap = {};
+  if (ownerIds.length) {
+    const { data: owners } = await svcClient().from('users').select('id,full_name').in('id', ownerIds);
+    for (const o of owners || []) nameMap[o.id] = o.full_name || '';
   }
-  res.json(out);
+  res.json(listings.map((l) => ({
+    id: l.id, title: l.title, status: l.status, price_per_day: l.price_per_day, featured: !!l.featured, rental_count: l.rental_count, owner_id: l.owner_id, owner_name: nameMap[l.owner_id] || '', category: 'cat-' + l.category_id,
+  })));
 });
 
 router.post('/admin/listings/:id', requireAuth, requireAdmin, async (req, res) => {
