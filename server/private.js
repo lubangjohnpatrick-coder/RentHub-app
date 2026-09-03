@@ -300,8 +300,9 @@ router.post('/bookings/:id/sign-agreement', requireAuth, async (req, res) => {
   const nb = await getBooking(b.id);
   if (nb.agreement_signed_renter && nb.agreement_signed_owner && nb.status === 'approved') {
     await svcClient().from('bookings').update({ status: 'active', updated_at: now() }).eq('id', b.id);
+    nb.status = 'active';
   }
-  res.json(await bookingFull({ ...b, ...patch }));
+  res.json(await bookingFull(nb));
 });
 
 router.post('/bookings/:id/condition', requireAuth, async (req, res) => {

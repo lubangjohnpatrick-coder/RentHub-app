@@ -83,7 +83,7 @@ const Root = {
         <a data-nav href="#/owner">For Owners</a>
         ${u.role === 'admin' ? '<a data-nav href="#/admin">Admin</a>' : ''}
         <div class="pos-rel"><a data-nav href="#/messages">Messages${this.state.unread ? `<span class="notif-dot">${this.state.unread}</span>` : ''}</a></div>
-        <a data-nav href="#/me" class="nav-me" aria-label="My account"><span class="avatar">${initial}</span><span class="nav-me-name only-wide">${firstName}</span></a>
+        <a data-nav href="#/me" class="nav-me" aria-label="My account" title="${initial} — my account"><span class="avatar only-mobile">${initial}</span><span class="nav-me-name only-wide">${firstName}</span></a>
       `;
     } else {
       links = `<a class="btn btn-outline" href="#/login">Log in</a><a class="btn btn-primary" href="#/register">Sign up</a>`;
@@ -738,8 +738,18 @@ const Root = {
                   ${b.agreement_signed_renter ? '<span class="pill completed">✓ Renter signed</span>' : ''}
                   ${b.agreement_signed_owner ? '<span class="pill completed">✓ Owner signed</span>' : ''}
                 </div>` : '<p style="color:var(--ink-soft);font-size:13px;margin-top:8px">Agreement generated on approval.</p>'}
-              ${b.status === 'approved' && (isRenter || isOwner) && !(b.agreement_signed_renter && b.agreement_signed_owner) ? `<div style="margin-top:12px"><label class="checkbox-label"><input type="checkbox" id="agree-ck"> I agree to the terms above</label>
-                <button class="btn btn-primary btn-block" style="margin-top:10px" onclick="Root.signAgreement(${b.id})">Accept & Sign</button></div>` : ''}
+              ${(() => {
+                const meSigned = isRenter ? !!b.agreement_signed_renter : !!b.agreement_signed_owner;
+                const bothSigned = !!b.agreement_signed_renter && !!b.agreement_signed_owner;
+                if (b.status === 'approved' && (isRenter || isOwner) && !bothSigned) {
+                  if (meSigned) {
+                    return `<p class="pill completed" style="margin-top:12px">✓ You've signed — awaiting the other party's signature</p>`;
+                  }
+                  return `<div style="margin-top:12px"><label class="checkbox-label"><input type="checkbox" id="agree-ck"> I agree to the terms above</label>
+                    <button class="btn btn-primary btn-block" style="margin-top:10px" onclick="Root.signAgreement(${b.id})">Accept & Sign</button></div>`;
+                }
+                return '';
+              })()}
             </div>
 
             ${this.conditionSection(b, isRenter, isOwner)}
