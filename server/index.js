@@ -36,13 +36,22 @@ app.use('/api', require('./private'));
 app.use('/api/upload', require('./upload'));
 
 // Static PWA
-app.use(express.static(path.join(__dirname, '..', 'public')));
+const setUtf8 = (res) => {
+  const ct = res.getHeader('Content-Type') || '';
+  if (ct && !/charset/i.test(ct)) res.setHeader('Content-Type', ct + '; charset=utf-8');
+};
+app.use(express.static(path.join(__dirname, '..', 'public'), { setHeaders: (res, filePath) => {
+  // Force a UTF-8 charset on HTML/CSS/JS/SVG/JSON so crawlers and proxies never
+  // guess a different encoding and mangle emoji/─/₱/© (reviewer #23).
+  if (/\.(html|css|js|json|svg)$/i.test(filePath)) setUtf8(res);
+}}));
 
 // SPA fallback with server-side prerendering for public SEO routes (reviewer
 // #3/#4/#22): known public pages get a meaningful <title>, meta description,
 // canonical/OG tags and real <h1> content visible even with JS disabled.
 app.get('*', (req, res) => {
   const p = (req.path || '/').split('?')[0].replace(/\/+$/, '') || '/';
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
   const r = prerender.routeFor(p);
   if (!r) return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
@@ -60,6 +69,15 @@ app.get('*', (req, res) => {
     .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${r.desc}">`)
     .replace(/(<main class="page" id="app">)/, `$1\n${r.noscript}`);
   res.send(out);
+});
+
+// Guarantee a UTF-8 charset on every HTML response so bots/proxies that honor
+// the header never misinterpret emoji/─/₱/© as Latin-1 (reviewer #23). Covers
+// the SPA fallback's sendFile path too, which Express otherwise serves without
+// a charset.
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/') && res.getHeader('Content-Type') == null) res.type('html');
+  next();
 });
 
 app.use((err, req, res, next) => {

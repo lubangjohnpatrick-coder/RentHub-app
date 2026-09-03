@@ -362,14 +362,26 @@ router.post('/bookings/:id/resolve-return', requireAuth, async (req, res) => {
   const b = await getBooking(req.params.id);
   if (!b) return res.status(404).json({ error: 'Not found' });
   if (b.renter_id !== req.user.id) return res.status(403).json({ error: 'Not your booking' });
+  // Guard: renter may only resolve a pending return once (reviewer #6).
+  if (b.status !== 'returned') return res.status(400).json({ error: 'This booking is not awaiting return approval' });
   const accept = req.body.accept === true;
   if (accept) {
-    const deduction = b.return_proposed_deduction || 0;
+    const revenue = require('./revenue');
+    const deduction = Math.min(Math.max(b.return_proposed_deduction || 0, 0), b.security_deposit || 0);
     const ownerEarning = b.rental_fee - b.platform_fee + b.delivery_fee + deduction;
     await ledger.addEntry({ bookingId: b.id, userId: b.owner_id, type: 'owner_earning', amount: ownerEarning, meta: { booking_ref: b.booking_ref } });
-    if (deduction > 0) await ledger.addEntry({ bookingId: b.id, userId: b.owner_id, type: 'deposit_deduction', amount: deduction, meta: { reason: 'agreed_damage' } });
+    if (deduction > 0) await ledger.addEntry({ bookingId: b.id, userId: b.owner_id, type: 'deposit_deduction', amount: deduction, meta: { reason: b.return_proposed_reason || 'agreed_damage' } });
+    await revenue.addIncome('commission', b.platform_fee || 0);
     const remaining = Math.max(0, b.security_deposit - deduction);
     if (remaining > 0) await ledger.addEntry({ bookingId: b.id, userId: b.renter_id, type: 'deposit', amount: remaining, meta: { reason: 'deposit_release' } });
+    if (b.security_deposit > 0) {
+      const dep = await svcClient().from('security_deposits').select('*').eq('booking_id', b.id).limit(1).maybeSingle();
+      if (dep.data && dep.data.status === 'held') {
+        await svcClient().from('security_deposits').update({
+          status: deduction > 0 ? 'partially_deducted' : 'released', deduction, released_at: now(),
+        }).eq('id', dep.data.id);
+      }
+    }
     await svcClient().from('bookings').update({ status: 'completed', escrow_released: true, return_completed_at: now(), updated_at: now() }).eq('id', b.id);
   } else {
     await svcClient().from('bookings').update({ status: 'disputed', updated_at: now() }).eq('id', b.id);

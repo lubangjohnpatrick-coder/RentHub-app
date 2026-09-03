@@ -290,6 +290,17 @@ router.post('/bookings', requireAuth, async (req, res) => {
     if (l.owner_id === req.user.id) return res.status(400).json({ error: 'You cannot rent your own listing' });
     if (l.status !== 'active') return res.status(400).json({ error: 'Listing is not available' });
 
+    // Enforcement behind the "verification" claim: listings may require a
+    // minimum verification level (2 = mobile verified, 3 = ID verified).
+    // Enforced server-side on booking creation so the frontend can't be
+    // bypassed (reviewer #1).
+    const needLevel = l.min_verification_level || 2;
+    const userLevel = req.user.identity_level || 1;
+    if (userLevel < needLevel) {
+      const extra = needLevel >= 3 ? ' This listing requires verified ID.' : '';
+      return res.status(428).json({ error: 'This listing requires a higher verification level.' + extra + ' Complete verification in your profile first.', code: 'verify_required', required: needLevel, current: userLevel });
+    }
+
     const start = new Date(start_date).getTime();
     const end = new Date(end_date).getTime();
     if (!start || !end || end <= start) return res.status(400).json({ error: 'Invalid dates' });
@@ -443,38 +454,53 @@ router.post('/bookings/:id/complete', requireAuth, async (req, res) => {
     if (b.owner_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Only the owner can complete this booking' });
     }
-    if (b.status !== 'active' && b.status !== 'returned') {
+    // Guard against double completion (reviewer #6 / #21).
+    if (b.status === 'completed' || b.status === 'returned') {
+      return res.status(400).json({ error: 'This booking is already closed or awaiting return approval' });
+    }
+    if (b.status !== 'active') {
       return res.status(400).json({ error: 'Booking is not in a completable state' });
     }
 
-    const proposed = b.return_proposed_deduction > 0 ? b.return_proposed_deduction : 0;
+    // Damage deduction proposed by the owner (reviewer #16). Never trust the
+    // client blindly: cap it at the deposit and floor at zero.
+    const proposedRaw = parseInt(req.body.damageDeduction, 10) || b.return_proposed_deduction || 0;
+    const proposed = Math.min(Math.max(proposedRaw, 0), b.security_deposit || 0);
+    const reason = (req.body.reason || '').toString().slice(0, 500);
 
-    // Credit owner: rental - platform fee + delivery fee (+ proposed deduction as damage penalty)
-    const ownerEarning = b.rental_fee - b.platform_fee + b.delivery_fee + proposed;
-    await ledger.addEntry({ bookingId: b.id, userId: b.owner_id, type: 'owner_earning', amount: ownerEarning, meta: { booking_ref: b.booking_ref } });
-
-    // Platform keeps its commission (8% or min 20 of rental fee)
-    await revenue.addIncome('commission', b.platform_fee || 0);
-
-    // Damage deduction credited to owner
-    if (proposed > 0) {
-      await ledger.addEntry({ bookingId: b.id, userId: b.owner_id, type: 'deposit_deduction', amount: proposed, meta: { reason: 'damage' } });
+    // Record the owner's checkout condition (if supplied) so a later dispute
+    // has the owner-side evidence at return.
+    if (reason && req.body.phase !== 'skip') {
+      await svcClient().from('condition_records').insert({
+        booking_id: b.id, phase: 'checkout', uploaded_by: req.user.id,
+        photos: JSON.stringify(req.body.photos || []),
+        serial_number: req.body.serial_number || '', accessories: req.body.accessories || '',
+        damage_notes: reason, created_at: now(),
+      });
     }
 
-    // Release remaining deposit to renter
-    const depositRemaining = Math.max(0, b.security_deposit - proposed);
+    // Two-phase damage flow: if the owner proposes a deposit deduction, DO NOT
+    // release funds yet. Move to `returned` and require the renter to either
+    // accept (release) or dispute (admin review) via resolve-return.
+    if (proposed > 0) {
+      await svcClient().from('bookings').update({
+        status: 'returned', return_proposed_deduction: proposed, return_proposed_reason: reason, updated_at: now(),
+      }).eq('id', b.id);
+      return res.json({ ok: true, status: 'returned', proposedDeduction: proposed, awaiting: 'renter_approval' });
+    }
+
+    // No damage: finalize immediately (credit owner, release deposit).
+    const ownerEarning = b.rental_fee - b.platform_fee + b.delivery_fee;
+    await ledger.addEntry({ bookingId: b.id, userId: b.owner_id, type: 'owner_earning', amount: ownerEarning, meta: { booking_ref: b.booking_ref } });
+    await revenue.addIncome('commission', b.platform_fee || 0);
+    const depositRemaining = b.security_deposit || 0;
     if (depositRemaining > 0) {
       await ledger.addEntry({ bookingId: b.id, userId: b.renter_id, type: 'deposit', amount: depositRemaining, meta: { reason: 'deposit_release' } });
-    }
-    if (b.security_deposit > 0) {
       const dep = await svcClient().from('security_deposits').select('*').eq('booking_id', b.id).limit(1).maybeSingle();
       if (dep.data && dep.data.status === 'held') {
-        await svcClient().from('security_deposits').update({
-          status: proposed > 0 ? 'partially_deducted' : 'released', deduction: proposed, released_at: now(),
-        }).eq('id', dep.data.id);
+        await svcClient().from('security_deposits').update({ status: 'released', deduction: 0, released_at: now() }).eq('id', dep.data.id);
       }
     }
-
     await svcClient().from('bookings').update({ status: 'completed', escrow_released: true, return_completed_at: now(), updated_at: now() }).eq('id', b.id);
     const listingRow = await svcClient().from('listings').select('rental_count').eq('id', b.listing_id).limit(1).single();
     await svcClient().from('listings').update({ rental_count: (listingRow.data?.rental_count || 0) + 1 }).eq('id', b.listing_id);
