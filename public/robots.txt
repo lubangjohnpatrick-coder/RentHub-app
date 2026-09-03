@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /account/
+Disallow: /messages/
+Disallow: /checkout/
+Disallow: /api/
+
+Sitemap: https://gorenthive.online/sitemap.xml

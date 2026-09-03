@@ -55,8 +55,21 @@ const Root = {
   },
   bindNav() {
     this.$topnav.addEventListener('click', (e) => {
+      const t = e.target.closest('.menu-toggle');
+      if (t) {
+        this.$topnav.querySelector('.nav-links')?.classList.toggle('open');
+        t.classList.toggle('open');
+        return;
+      }
       const a = e.target.closest('a[data-nav]');
-      if (a) this.renderNav();
+      if (a) {
+        const links = this.$topnav.querySelector('.nav-links');
+        if (links && links.classList.contains('open')) {
+          links.classList.remove('open');
+          this.$topnav.querySelector('.menu-toggle')?.classList.remove('open');
+        }
+        this.renderNav();
+      }
     });
   },
   renderNav() {
@@ -76,7 +89,8 @@ const Root = {
     this.$topnav.innerHTML = `
       <div class="wrap topnav-inner">
         <a href="#/" class="brand"><span class="logo">🐝</span><span><b>Go</b>RentHive</span></a>
-        <div class="nav-links">${links}</div>
+        <button class="menu-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+        <div class="nav-links"><div class="nav-link-pad">${links}</div></div>
       </div>`;
     this.$bottom.innerHTML = `
       <a href="#/" class="${this.state.view === 'home' ? 'active' : ''}"><span class="bx">🏠</span>Home</a>
@@ -99,6 +113,7 @@ const Root = {
     this.renderNav();
     const query = segs ? Object.fromEntries(new URLSearchParams(segs)) : {};
     this.state.params = { parts, query };
+    this.setMetaForRoute(parts, query);
     this.$app.innerHTML = `<div class="spinner"></div>`;
     try {
       await this.render(parts, query);
@@ -110,6 +125,43 @@ const Root = {
       this.$app.innerHTML = `<div class="empty"><div class="em">⚠️</div><h3>Something went wrong</h3><p>${esc(e && e.message || 'Server error')}</p></div>`;
     }
     window.scrollTo(0, 0);
+  },
+  setMeta(title, description, canonicalPath) {
+    document.title = title;
+    const setMeta = (attr, qual, val) => {
+      let m = document.querySelector(`meta[${attr}="${qual}"]`);
+      if (!m) { m = document.createElement('meta'); m.setAttribute(attr, qual); document.head.appendChild(m); }
+      m.setAttribute('content', val);
+    };
+    setMeta('name', 'description', description);
+    setMeta('property', 'og:title', title);
+    setMeta('property', 'og:description', description);
+    let can = document.querySelector('link[rel="canonical"]');
+    if (can) can.setAttribute('href', 'https://gorenthive.online' + canonicalPath);
+  },
+  setMetaForRoute(parts, query) {
+    const route = parts[0] || 'home';
+    const SITE = 'GoRentHive Philippines';
+    const q = (query.q || '').trim();
+    const M = {
+      home: [ `GoRentHive | Rent Anything, Earn From What You Own`, `Rent tools, vehicles, party equipment, cameras and more from people near you in ${SITE} — or turn your unused items into income.`, '/' ],
+      explore: [ `${q ? `${q} for Rent in ${SITE}` : `Explore Rentals | ${SITE}`}`, `Rent cameras, tents, speakers, cars, tools and more from local owners in ${SITE}.`, '/explore' ],
+      categories: [ `Categories | ${SITE}`, `Browse rental categories — cameras, tents, speakers, tools, vehicles and more in ${SITE}.`, '/categories' ],
+      listing: [ `Rental Details | ${SITE}`, `View and book this item for rent in ${SITE}.`, `/listing/${parts[1] || ''}` ],
+      rent: [ `Rent Items Near You | ${SITE}`, `Find gear, tools, vehicles and more for rent from local owners in ${SITE}.`, '/rent' ],
+      earn: [ `Earn Money Renting Your Items | ${SITE}`, `Turn unused tools, equipment, vehicles and other items into extra income on GoRentHive.`, '/earn' ],
+      pricing: [ `Pricing & Fees | ${SITE}`, `Simple, honest pricing for peer-to-peer rentals in ${SITE}.`, '/pricing' ],
+      'how-it-works': [ `How GoRentHive Works | ${SITE}`, `Rent & earn in ${SITE}: find an item, request a rental, pay securely.`, '/how-it-works' ],
+      'trust-safety': [ `Trust & Safety | GoRentHive`, `GoRentHive is designed for safer peer-to-peer rentals — verified users and secure transactions.`, '/trust-safety' ],
+      about: [ `About GoRentHive | ${SITE}`, `The peer-to-peer rental marketplace for the things you already own.`, '/about' ],
+      help: [ `Help Center | GoRentHive`, `Get help with renting, earning, payments and more on GoRentHive.`, '/help' ],
+      contact: [ `Contact Us | GoRentHive`, `Contact the GoRentHive support team.`, '/contact' ],
+      legal: [ `Legal | GoRentHive`, `GoRentHive legal documents — terms, privacy, rental agreement.`, `/legal/${parts[1] || ''}` ],
+      login: [ `Log in | GoRentHive`, `Log in to your GoRentHive account to rent and earn.`, '/login' ],
+      register: [ `Create Account | GoRentHive`, `Create a free GoRentHive account to rent and earn in the Philippines.`, '/register' ],
+    };
+    const m = M[route];
+    if (m) this.setMeta(m[0], m[1], m[2]);
   },
   async render(parts, query) {
     const [route = 'home', id] = parts;
@@ -935,7 +987,7 @@ const Root = {
   async signAgreement(id) {
     const ck = document.getElementById('agree-ck');
     if (ck && !ck.checked) { this.toast('Please accept the terms first', 'warn'); return; }
-    try { await API.post(`/bookings/${id}/sign-agreement`); this.toast('Signed', 'success'); location.reload(); }
+    try { await API.post(`/bookings/${id}/sign-agreement`); this.toast('Signed', 'success'); this.viewBookingDetail(id); }
     catch (e) { this.toast(e.message, 'error'); }
   },
   async cancelBooking(id) {
@@ -1063,7 +1115,8 @@ const Root = {
     if (files.length) {
       const fd = new FormData();
       [...files].forEach(f => fd.append('files', f));
-      const response = await fetch('/api/upload', { method: 'POST', body: fd });
+      const token = await window.__getAccessToken();
+      const response = await fetch('/api/upload', { method: 'POST', body: fd, headers: token ? { 'Authorization': 'Bearer ' + token } : {} });
       const up = await response.json();
       if (!response.ok) throw new Error(up.error || 'Photo upload failed');
       photos.push(...(up.urls || []));
