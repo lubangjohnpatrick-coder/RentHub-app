@@ -105,6 +105,30 @@ const ROUTES = {
     h1: 'Earn from the things you own',
     intro: 'List your items, set your own prices, and get paid when they rent.',
   },
+  '/legal/terms': {
+    title: 'Terms & Conditions | GoRentHive',
+    desc: 'The GoRentHive Terms & Conditions for renting and listing.',
+    h1: 'Terms & Conditions',
+    intro: 'The rules that govern renting, listing and payments on GoRentHive.',
+  },
+  '/legal/privacy': {
+    title: 'Privacy Policy | GoRentHive',
+    desc: 'How GoRentHive collects and protects your data.',
+    h1: 'Privacy Policy',
+    intro: 'How GoRentHive collects, uses and protects personal data.',
+  },
+  '/legal/rental_agreement': {
+    title: 'Rental Agreement | GoRentHive',
+    desc: 'The GoRentHive rental agreement between renters and owners.',
+    h1: 'Rental Agreement',
+    intro: 'The agreement that governs each rental between a renter and an owner.',
+  },
+  '/legal/prohibited': {
+    title: 'Prohibited Items | GoRentHive',
+    desc: 'Items that cannot be rented on GoRentHive.',
+    h1: 'Prohibited items',
+    intro: 'A list of items that are not allowed to be rented through GoRentHive.',
+  },
 };
 
 function escapeHtml(s) {
