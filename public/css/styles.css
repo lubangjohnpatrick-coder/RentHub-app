@@ -185,7 +185,7 @@ main.page { padding-bottom: calc(var(--bottom-h) + 30px); }
 @media(min-width:820px){ .steps { grid-template-columns: repeat(4,1fr); } }
 .step { background: #fff; padding: 18px; border-radius: 14px; border: 1px solid var(--line); }
 .step .n { width: 30px; height: 30px; border-radius: 9px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; font-weight: 800; margin-bottom: 10px; }
-.step h4 { margin-bottom: 4px; }
+.step h3, .step h4 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
 .step p { color: var(--ink-soft); font-size: 13px; }
 
 /* ============ Listing detail ============ */

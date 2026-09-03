@@ -228,8 +228,8 @@ const Root = {
           <div class="hero-grid">
             <div class="hero-copy">
               <span class="hero-eyebrow">⚡ Peer-to-peer rental marketplace</span>
-              <h1>Rent anything. <span>Anywhere.</span></h1>
-              <p class="sub">Why buy something you'll only use once? Rent gear from trusted people near you — and turn your own unused things into income.</p>
+              <h1>Rent What You Need. <span>Earn From What You Own.</span></h1>
+              <p class="sub">Rent tools, vehicles, party supplies, cameras and more from people near you — or turn your own unused things into income.</p>
               <div class="hero-ctas">
                 <a class="btn btn-primary" href="#/explore">🔍 Search Items</a>
                 <a class="btn btn-outline-light" href="#/list">＋ List Your Item</a>
@@ -311,22 +311,22 @@ const Root = {
         </section>` : ''}
 
         <section class="section">
-          <div class="section-head"><h2>How It Works</h2></div>
+          <div class="section-head"><h2>How GoRentHive Works</h2></div>
           <div class="steps">
-            <div class="step"><div class="n">1</div><h4>Search</h4><p>Find exactly what you need near you.</p></div>
-            <div class="step"><div class="n">2</div><h4>Book & Pay</h4><p>Choose dates, pay securely. Deposit held safely.</p></div>
-            <div class="step"><div class="n">3</div><h4>Receive</h4><p>Pick up or get it delivered. Record condition.</p></div>
-            <div class="step"><div class="n">4</div><h4>Return & Review</h4><p>Return on time, get deposit back, rate each other.</p></div>
+            <div class="step"><div class="n">1</div><h3>Find an Item</h3><p>Find exactly what you need near you.</p></div>
+            <div class="step"><div class="n">2</div><h3>Request a Rental</h3><p>Choose dates, pay securely. Deposit held safely.</p></div>
+            <div class="step"><div class="n">3</div><h3>Pay & Receive</h3><p>Pick up or get it delivered. Record condition.</p></div>
+            <div class="step"><div class="n">4</div><h3>Return & Review</h3><p>Return on time, get deposit back, rate each other.</p></div>
           </div>
         </section>
 
         <section class="section">
-          <div class="section-head"><h2>🛡️ Safety & Trust</h2></div>
+          <div class="section-head"><h2>Built for Safer Rentals</h2></div>
           <div class="card-grid">
-            <div class="step"><h4>✅ Verified Users</h4><p>Mobile, email & ID verification with trust levels.</p></div>
-            <div class="step"><h4>💰 Secure Payments</h4><p>Provider-agnostic payment & escrow for deposits.</p></div>
-            <div class="step"><h4>📄 Rental Agreements</h4><p>Auto-generated, digitally signed agreements.</p></div>
-            <div class="step"><h4>🤝 Dispute Resolution</h4><p>Report problems with full evidence trail.</p></div>
+            <div class="step"><h3>✅ Verified Users</h3><p>Mobile, email & ID verification with trust levels.</p></div>
+            <div class="step"><h3>💰 Secure Payments</h3><p>Provider-agnostic payment & escrow for deposits.</p></div>
+            <div class="step"><h3>📄 Rental Agreements</h3><p>Auto-generated, digitally signed agreements.</p></div>
+            <div class="step"><h3>🤝 Dispute Resolution</h3><p>Report problems with full evidence trail.</p></div>
           </div>
         </section>
       </div>`;
