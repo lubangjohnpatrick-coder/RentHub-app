@@ -33,6 +33,14 @@ async function computePlatformFee(rentalPrice) {
   return fee;
 }
 
+// Historical snapshot rate used at the moment a booking is created, so later
+// changes to the commission setting never rewrite the history of a past booking.
+async function getPlatformRate() {
+  const percent = parseFloat((await getSetting('platform_percent', '8'))) || 8;
+  const minFee = parseInt(await getSetting('platform_min_fee', '20'), 10) || 20;
+  return { percent, minFee };
+}
+
 // Free-plan monthly active-listing cap (premium = unlimited).
 async function getFreeListingLimit() {
   return parseInt(await getSetting('free_listing_limit', '15'), 10) || 15;
@@ -67,6 +75,7 @@ module.exports = {
   getSetting,
   setSetting,
   computePlatformFee,
+  getPlatformRate,
   getFreeListingLimit,
   getExtraListingFee,
   getPremiumFee,

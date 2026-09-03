@@ -320,6 +320,7 @@ router.post('/bookings', requireAuth, async (req, res) => {
       deliveryFee = l.delivery_fee || 0;
     }
     const platformFee = await settings.computePlatformFee(rentalFee);
+    const rateAtBooking = await settings.getPlatformRate();
     const deposit = l.security_deposit || 0;
     const total = rentalFee + deliveryFee + deposit + platformFee;
     const amountDueOwner = rentalFee - platformFee + deliveryFee;
@@ -350,6 +351,7 @@ router.post('/bookings', requireAuth, async (req, res) => {
       booking_ref: bookingRef, renter_id: req.user.id, owner_id: ownerId, listing_id,
       client_request_id: clientRequestId,
       start_date: start, end_date: end, rental_days: days, rental_fee: rentalFee, security_deposit: deposit,
+      daily_rate_at_booking: l.price_per_day || 0, commission_rate_at_booking: rateAtBooking.percent || 0,
       delivery_fee: deliveryFee, delivery_requested: method === 'lalamove',
       pickup_option: pickup_option || 'pickup', delivery_method: method,
       delivery_distance_km: distance, delivery_vehicle_type: vehicle,
@@ -415,8 +417,12 @@ router.post('/bookings/:id/cancel', requireAuth, async (req, res) => {
       await ledger.addEntry({ bookingId: b.id, userId: b.renter_id, type: 'deposit', amount: b.security_deposit, meta: { reason: 'deposit_release_cancel' } });
     }
     // Refund the non-refunded portion is kept by owner/platform per policy (MVP keeps on account)
+    const nowMs = now();
     await svcClient().from('bookings').update({
-      status: 'cancelled', cancellation_reason: req.body.reason || 'cancelled', cancelled_by: req.user.id, updated_at: now(),
+      status: refundAmount > 0 ? 'refunded' : 'cancelled',
+      refund_amount: refundAmount + b.security_deposit,
+      refunded_at: nowMs,
+      cancellation_reason: req.body.reason || 'cancelled', cancelled_by: req.user.id, updated_at: nowMs,
     }).eq('id', b.id);
     const balance = await ledger.getUserBalance(b.renter_id);
     res.json({ ok: true, refundAmount, deposit: b.security_deposit, balance });

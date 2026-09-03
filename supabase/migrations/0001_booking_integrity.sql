@@ -30,3 +30,53 @@ begin
     alter table public.bookings add column client_request_id text;
   end if;
 end $$;
+
+-- 4. Financial-history snapshot at booking time (reviewer #21). A booking must
+--    preserve the rate and commission that applied when it was created, so
+--    later price/commission changes never rewrite past transactions.
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                 where table_schema = 'public' and table_name = 'bookings'
+                   and column_name = 'daily_rate_at_booking') then
+    alter table public.bookings add column daily_rate_at_booking integer not null default 0;
+  end if;
+  if not exists (select 1 from information_schema.columns
+                 where table_schema = 'public' and table_name = 'bookings'
+                   and column_name = 'commission_rate_at_booking') then
+    alter table public.bookings add column commission_rate_at_booking double precision not null default 0;
+  end if;
+end $$;
+
+-- 5. Cancellation refund audit trail (reviewer #20). Track how much was refunded
+--    and when, and allow the refunded/refund_pending lifecycle states.
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                 where table_schema = 'public' and table_name = 'bookings'
+                   and column_name = 'refund_amount') then
+    alter table public.bookings add column refund_amount integer not null default 0;
+  end if;
+  if not exists (select 1 from information_schema.columns
+                 where table_schema = 'public' and table_name = 'bookings'
+                   and column_name = 'refunded_at') then
+    alter table public.bookings add column refunded_at bigint;
+  end if;
+end $$;
+
+-- Allow the new lifecycle states in the bookings status constraint.
+alter table public.bookings drop constraint if exists bookings_status_check;
+alter table public.bookings add constraint bookings_status_check check (
+  status in ('pending','approved','rejected','active','returned','completed','disputed','cancelled','refund_pending','refunded')
+);
+
+-- 6. Rental-agreement version snapshot (reviewer #19). Record which agreement
+--    version each booking accepted.
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                 where table_schema = 'public' and table_name = 'rental_agreements'
+                   and column_name = 'agreement_version') then
+    alter table public.rental_agreements add column agreement_version text not null default '1.0';
+  end if;
+end $$;

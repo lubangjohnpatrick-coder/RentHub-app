@@ -17,6 +17,10 @@ const monetize = require('./monetize');
 const router = express.Router();
 const now = () => Date.now();
 
+// Current version of the standard rental agreement. Bump when the legal text
+// changes so bookings capture which version each party accepted (#19).
+const AGREEMENT_VERSION = '1.0';
+
 // ------------------------------------------------------------
 // HELPERS
 // ------------------------------------------------------------
@@ -295,7 +299,7 @@ router.post('/bookings/:id/sign-agreement', requireAuth, async (req, res) => {
   const patch = {};
   if (isRenter) patch.agreement_signed_renter = true;
   else patch.agreement_signed_owner = true;
-  await svcClient().from('rental_agreements').upsert({ booking_id: b.id, listing_id: b.listing_id, body: 'Rental agreement for ' + b.booking_ref, created_at: now(), [isRenter ? 'renter_signed_at' : 'owner_signed_at']: now() }, { onConflict: 'booking_id' });
+  await svcClient().from('rental_agreements').upsert({ booking_id: b.id, listing_id: b.listing_id, agreement_version: AGREEMENT_VERSION, body: 'Rental agreement for ' + b.booking_ref, created_at: now(), [isRenter ? 'renter_signed_at' : 'owner_signed_at']: now() }, { onConflict: 'booking_id' });
   await svcClient().from('bookings').update(patch).eq('id', b.id);
   const nb = await getBooking(b.id);
   if (nb.agreement_signed_renter && nb.agreement_signed_owner && nb.status === 'approved') {
