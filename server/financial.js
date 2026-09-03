@@ -65,7 +65,27 @@ router.post('/wallet/paymongo/topup', requireAuth, async (req, res) => {
 // plus the booking total so the client can confirm.
 router.post('/bookings/paymongo', requireAuth, async (req, res) => {
   try {
-    const amount = Math.round(Number(req.body.total));
+    // When the draft identifies a listing + dates, recompute the authoritative
+    // total server-side so the client cannot under/over-state the amount.
+    let amount = Math.round(Number(req.body.total));
+    const draft = req.body && req.body.booking_draft ? req.body.booking_draft : req.body;
+    if (draft && draft.listing_id && draft.start_date && draft.end_date) {
+      const listing = await loadListing(draft.listing_id);
+      if (!listing.error && listing.data) {
+        const l = listing.data;
+        const start = new Date(draft.start_date).getTime();
+        const end = new Date(draft.end_date).getTime();
+        if (start && end && end > start) {
+          const days = Math.max(1, Math.round((end - start) / REQ_DAYS_MS));
+          const rentalFee = days * (l.price_per_day || 0);
+          const method = draft.delivery_method === 'lalamove' || draft.delivery_requested ? 'lalamove' : 'pickup';
+          let deliveryFee = 0;
+          if (method === 'lalamove' && l.delivery_available) deliveryFee = l.delivery_fee || 0;
+          const platformFee = await settings.computePlatformFee(rentalFee);
+          amount = Math.round(rentalFee + deliveryFee + (l.security_deposit || 0) + platformFee);
+        }
+      }
+    }
     const method = req.body.method || 'gcash';
     if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid booking total' });
 

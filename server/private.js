@@ -308,6 +308,7 @@ router.post('/bookings/:id/delivery/:phase/status', requireAuth, async (req, res
   const { id, phase } = req.params;
   const b = await getBooking(id);
   if (!b) return res.status(404).json({ error: 'Not found' });
+  if (b.renter_id !== req.user.id && b.owner_id !== req.user.id && req.user.role !== 'admin') return res.status(403).json({ error: 'Not your booking' });
   const { data } = await svcClient().from('delivery_requests').select('*').eq('booking_id', id).eq('phase', phase).order('created_at', { ascending: false }).limit(1);
   const d = (data || [])[0];
   if (!d) return res.status(404).json({ error: 'No delivery request' });
@@ -519,15 +520,20 @@ function haversineKm(aLat, aLng, bLat, bLng) {
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
+// PostgREST-safe: strip characters that could let a user break out of a filter
+// (commas, parens, wildcards, quotes, backslashes). Used for all user-supplied
+// values that are interpolated into .eq()/.ilike/or() filter strings.
+function pgSafe(v) { return String(v == null ? '' : v).replace(/[(),.*"'\\]/g, '').trim(); }
+
 router.get('/listings', async (req, res) => {
   try {
     let query = svcClient().from('listings').select('*');
     const filters = [];
-    if (req.query.owner) filters.push(`owner_id=eq.${req.query.owner}`);
-    if (req.query.category) filters.push(`category_id=eq.${req.query.category}`);
-    if (req.query.city) filters.push(`location_city=ilike.*${req.query.city}*`);
+    if (req.query.owner) filters.push(`owner_id=eq.${pgSafe(req.query.owner)}`);
+    if (req.query.category) filters.push(`category_id=eq.${pgSafe(req.query.category)}`);
+    if (req.query.city) filters.push(`location_city=ilike.*${pgSafe(req.query.city)}*`);
     if (req.query.q) {
-      const q = (req.query.q || '').trim();
+      const q = pgSafe(req.query.q);
       filters.push(`or(title.ilike.*${q}*,description.ilike.*${q}*)`);
     }
     if (filters.length) query = query.or(filters.join(','));
@@ -776,20 +782,22 @@ router.post('/reviews', requireAuth, async (req, res) => {
   try {
     const { booking_id, rating, comment, target_user_id, listing_id } = req.body;
     if (!booking_id || !rating || !target_user_id) return res.status(400).json({ error: 'booking_id, rating, target_user_id required' });
+    const numericRating = Number(rating);
+    if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
     const b = await getBooking(booking_id);
     if (!b || b.status !== 'completed') return res.status(403).json({ error: 'Only completed bookings can be reviewed' });
     if (b.renter_id !== req.user.id && b.owner_id !== req.user.id) return res.status(403).json({ error: 'Not your booking' });
     if (b.renter_id !== target_user_id && b.owner_id !== target_user_id) return res.status(403).json({ error: 'Can only review the other party' });
     const { data: existing } = await svcClient().from('booking_reviews').select('*').eq('booking_id', booking_id).eq('reviewer_id', req.user.id).maybeSingle();
     if (existing) return res.status(409).json({ error: 'Already reviewed' });
-    await svcClient().from('booking_reviews').insert({ booking_id: booking_id, reviewer_id: req.user.id, target_user_id, rating: Number(rating), comment: comment || '', created_at: now() });
+    await svcClient().from('booking_reviews').insert({ booking_id: booking_id, reviewer_id: req.user.id, target_user_id, rating: numericRating, comment: comment || '', created_at: now() });
     const { data: tu } = await svcClient().from('users').select('rating_sum,review_count,id').eq('id', target_user_id).single();
-    const newSum = (tu.rating_sum || 0) + Number(rating);
+    const newSum = (tu.rating_sum || 0) + numericRating;
     const newCount = (tu.review_count || 0) + 1;
     await svcClient().from('users').update({ rating_sum: newSum, review_count: newCount, vessel_rating: Math.round((newSum / newCount) * 10) / 10, updated_at: now() }).eq('id', target_user_id);
     if (listing_id) {
       const { data: le } = await svcClient().from('listing_reviews').select('*').eq('listing_id', listing_id).eq('author_id', req.user.id).maybeSingle();
-      if (!le) await svcClient().from('listing_reviews').insert({ listing_id: listing_id, author_id: req.user.id, rating: Number(rating), comment: comment || '', created_at: now() });
+      if (!le) await svcClient().from('listing_reviews').insert({ listing_id: listing_id, author_id: req.user.id, rating: numericRating, comment: comment || '', created_at: now() });
     }
     res.json({ ok: true, new_rating: (newSum / newCount).toFixed(1) });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -844,7 +852,7 @@ router.get('/admin/analytics', requireAuth, requireAdmin, async (req, res) => {
 });
 
 router.get('/admin/users', requireAuth, requireAdmin, async (req, res) => {
-  const q = (req.query.q || '').trim();
+  const q = pgSafe(req.query.q);
   let query = svcClient().from('users').select('*').order('created_at', { ascending: false }).limit(200);
   if (q) query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
   const { data } = await query;
