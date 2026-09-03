@@ -124,7 +124,8 @@ const Root = {
         location.hash = '#/login';
         return;
       }
-      this.$app.innerHTML = `<div class="empty"><div class="em">⚠️</div><h3>Something went wrong</h3><p>${esc(e && e.message || 'Server error')}</p></div>`;
+      this.$app.innerHTML = `<div class="empty"><div class="em">⚠️</div><h3>Something went wrong while processing your request</h3><p>Please try again in a moment. If the problem persists, reach out via the Help Center.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px"><button class="btn btn-primary" onclick="location.reload()">Try Again</button><a class="btn btn-outline" href="#/explore">Return to Rentals</a></div></div>`;
+      if (typeof console !== 'undefined') console.error('Route render error:', e);
     }
     window.scrollTo(0, 0);
   },
@@ -138,8 +139,18 @@ const Root = {
     setMeta('name', 'description', description);
     setMeta('property', 'og:title', title);
     setMeta('property', 'og:description', description);
+    setMeta('property', 'og:type', 'website');
+    const siteUrl = 'https://gorenthive.online';
+    const url = (canonicalPath || '/').replace(/\/+$/, '') || '/';
+    setMeta('property', 'og:url', siteUrl + url);
+    if (!document.querySelector('meta[property="og:image"]')) {
+      const img = document.createElement('meta'); img.setAttribute('property', 'og:image'); img.setAttribute('content', siteUrl + '/icons/icon-512.png'); document.head.appendChild(img);
+    }
+    setMeta('name', 'twitter:card', 'summary_large_image');
+    setMeta('name', 'twitter:title', title);
+    setMeta('name', 'twitter:description', description);
     let can = document.querySelector('link[rel="canonical"]');
-    if (can) can.setAttribute('href', 'https://gorenthive.online' + canonicalPath);
+    if (can) can.setAttribute('href', siteUrl + url);
   },
   setMetaForRoute(parts, query) {
     const route = parts[0] || 'home';
@@ -431,8 +442,11 @@ const Root = {
     if (!initial) history.replaceState(null, '', '#/explore?' + p.toString());
     const data = await API.get('/listings?' + p.toString());
     const el = document.getElementById('ex-results');
-    if (!data.length) { el.innerHTML = `<div class="empty"><div class="em">🔍</div><h3>No items found</h3><p>Can't find it? <a href="#/requests" style="color:var(--brand);font-weight:700">Post a rental request →</a></p></div>`; return; }
+    if (!data.length) { el.innerHTML = `<div class="empty"><div class="em">🔍</div><h3>We couldn&#39;t find anything matching${q ? ` &quot;${esc(q)}&quot;` : ''} ${city ? `near ${esc(city)}` : ''}</h3><p>Try a different keyword, another location, or a wider date range.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px"><button class="btn btn-primary btn-sm" onclick="Root.clearExploreFilters()">Browse All Rentals</button><a href="#/requests" class="btn btn-outline btn-sm">Post a rental request →</a></div></div>`; return; }
     el.innerHTML = `<div class="card-grid">${data.map(l => this.listingCard(l)).join('')}</div>`;
+  },
+  clearExploreFilters() {
+    location.hash = '#/explore';
   },
   async resolveRadiusCoords() {
     const me = this.state.meLocation;
