@@ -9,6 +9,7 @@
     "mobile-test": "node server/mobiletest.js",
     "security-test": "node server/securitest.js",
     "dispute-test": "node server/disputetest.js",
+    "golden-test": "node server/goldensuite.js",
     "icons": "node server/genicons.js"
   },
   "keywords": [
