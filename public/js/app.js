@@ -2510,7 +2510,7 @@ const Root = {
   viewTrustSafety() {
     const items = [
       ['🪪', 'Identity Verification', 'Mobile, email & government ID verification with trust levels help confirm who you\'re dealing with.'],
-      ['💰', 'Secure Payments', 'Transactions are processed through supported payment providers and held securely until the rental completes.'],
+      ['💰', 'Secure Payments', 'Funds are captured and held in secure in-app escrow by GoRentHive for the rental (and for the refundable deposit), never paid out to the owner before the rental is fulfilled. Payment is released to the owner only when the rental completes, and the deposit is returned to the renter minus any verified deduction. Refunds follow the cancellation policy, and disputed deductions are managed by our team with a full evidence trail.'],
       ['🔒', 'Security Deposits', 'Refundable deposits are held separately and returned according to the rental and deposit policy.'],
       ['📄', 'Rental Agreements', 'Bookings can be supported by digital rental agreements, auto-generated and signed in-app.'],
       ['⭐', 'Ratings & Reviews', 'See what other users experienced before you book. Both owners and renters leave reviews.'],
