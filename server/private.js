@@ -338,7 +338,7 @@ router.post('/bookings/:id/resolve-return', requireAuth, async (req, res) => {
   res.json(await bookingFull(b));
 });
 
-router.post('/admin/bookings/:id/dispute', requireAuth, async (req, res) => {
+router.post('/admin/bookings/:id/dispute', requireAuth, requireAdmin, async (req, res) => {
   const b = await getBooking(req.params.id);
   if (!b) return res.status(404).json({ error: 'Not found' });
   const { data } = await svcClient().from('disputes').select('*').eq('booking_id', b.id).limit(1);

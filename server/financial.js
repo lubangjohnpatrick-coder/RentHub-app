@@ -219,50 +219,129 @@ router.get('/wallet', requireAuth, async (req, res) => {
 // ============================================================
 // BOOKINGS — create uses the wallet escrow
 // ============================================================
+// ALL monetary amounts are recomputed server-side from the listing row.
+// Client-supplied prices / commission / payout / total are NEVER trusted.
+const REQ_DAYS_MS = 24 * 60 * 60 * 1000;
+const DELIVERY_VEHICLES = ['motorcycle', 'car', 'van', 'truck'];
+
+async function loadListing(listingId) {
+  return svcClient().from('listings').select('*').eq('id', listingId).limit(1).single();
+}
+
+// Server-computed price quote (shown live in the UI before booking).
+router.post('/bookings/quote', requireAuth, async (req, res) => {
+  try {
+    const { listing_id, start_date, end_date, delivery_method, delivery_requested, distance_km, vehicle_type } = req.body || {};
+    const listing = await loadListing(listing_id);
+    if (listing.error || !listing.data) return res.status(404).json({ error: 'Listing not found' });
+    const l = listing.data;
+    const start = new Date(start_date).getTime();
+    const end = new Date(end_date).getTime();
+    if (!start || !end || end <= start) return res.status(400).json({ error: 'Invalid dates' });
+    const days = Math.max(1, Math.round((end - start) / REQ_DAYS_MS));
+    const rentalFee = days * (l.price_per_day || 0);
+    const method = delivery_method === 'lalamove' || (delivery_method === undefined && delivery_requested) ? 'lalamove' : 'pickup';
+    let deliveryFee = 0;
+    let distance = 0;
+    let vehicle = '';
+    if (method === 'lalamove' && l.delivery_available) {
+      distance = Math.max(0, parseFloat(distance_km) || 5);
+      vehicle = DELIVERY_VEHICLES.includes(vehicle_type) ? vehicle_type : 'motorcycle';
+      deliveryFee = l.delivery_fee || 0;
+    }
+    const platformFee = await settings.computePlatformFee(rentalFee);
+    const deposit = l.security_deposit || 0;
+    const total = rentalFee + deliveryFee + deposit + platformFee;
+    res.json({
+      days, rental_fee: rentalFee, delivery_method: method, delivery_fee: deliveryFee,
+      lalamove_fee: deliveryFee, distance_km: distance, vehicle_type: vehicle,
+      security_deposit: deposit, security_deposit_full: l.security_deposit || 0,
+      platform_fee: platformFee, total, owner_earning: rentalFee - platformFee + deliveryFee,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/bookings', requireAuth, async (req, res) => {
   try {
-    const { listing_id, start_date, end_date, rental_days, rental_fee, security_deposit, delivery_fee, delivery_requested, lalamove_fee, platform_fee, total_charged, meeting_point, bundle_items } = req.body;
-    const balance = await ledger.getUserBalance(req.user.id);
-    if (balance < total_charged) {
-      return res.status(400).json({ error: 'Insufficient wallet balance. Please top up first.' });
+    const { listing_id, start_date, end_date, delivery_requested, delivery_method, distance_km, vehicle_type, pickup_option, meeting_point, meeting_point_name, meeting_point_address } = req.body;
+    const listing = await loadListing(listing_id);
+    if (listing.error || !listing.data) return res.status(404).json({ error: 'Listing not found' });
+    const l = listing.data;
+    if (l.owner_id === req.user.id) return res.status(400).json({ error: 'You cannot rent your own listing' });
+    if (l.status !== 'active') return res.status(400).json({ error: 'Listing is not available' });
+
+    const start = new Date(start_date).getTime();
+    const end = new Date(end_date).getTime();
+    if (!start || !end || end <= start) return res.status(400).json({ error: 'Invalid dates' });
+    const days = Math.max(1, Math.round((end - start) / REQ_DAYS_MS));
+
+    // Server-side price computation — never trusts the client.
+    const rentalFee = days * (l.price_per_day || 0);
+    const method = delivery_method === 'lalamove' || (delivery_method === undefined && delivery_requested) ? 'lalamove' : 'pickup';
+    let deliveryFee = 0;
+    let distance = 0;
+    let vehicle = '';
+    if (method === 'lalamove') {
+      if (!l.delivery_available) return res.status(400).json({ error: 'This item is not available for delivery' });
+      distance = Math.max(0, parseFloat(distance_km) || 5);
+      vehicle = DELIVERY_VEHICLES.includes(vehicle_type) ? vehicle_type : 'motorcycle';
+      deliveryFee = l.delivery_fee || 0;
     }
-    const listing = await svcClient().from('listings').select('owner_id').eq('id', listing_id).limit(1).single();
-    const ownerId = listing.data?.owner_id;
+    const platformFee = await settings.computePlatformFee(rentalFee);
+    const deposit = l.security_deposit || 0;
+    const total = rentalFee + deliveryFee + deposit + platformFee;
+    const amountDueOwner = rentalFee - platformFee + deliveryFee;
+
+    // Wallet escrow balance check against the SERVER-computed total.
+    const balance = await ledger.getUserBalance(req.user.id);
+    if (balance < total) {
+      return res.status(402).json({ error: 'Insufficient wallet balance. Please top up first.', code: 'insufficient_funds', required: total, balance });
+    }
+
+    // Availability check (no overlapping active/pending bookings).
+    const { data: overlap } = await svcClient().from('bookings').select('id')
+      .eq('listing_id', listing_id).in('status', ['pending', 'approved', 'active'])
+      .lt('start_date', end).gt('end_date', start).limit(1).maybeSingle();
+    if (overlap) return res.status(400).json({ error: 'The item is already booked for those dates' });
+
+    const ownerId = l.owner_id;
     const bookingRef = 'BK-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
 
-    // Debited once, then the platform keeps: rental escrow + deposit escrow + fees
-    await ledger.addEntry({ userId: req.user.id, type: 'rental_escrow', amount: -(rental_fee + delivery_fee), meta: { booking_ref: bookingRef } });
-    if (security_deposit > 0) {
-      await ledger.addEntry({ userId: req.user.id, type: 'deposit_escrow', amount: -security_deposit, meta: { booking_ref: bookingRef } });
+    // Debited once; platform keeps rental escrow + deposit escrow + fees.
+    await ledger.addEntry({ userId: req.user.id, type: 'rental_escrow', amount: -(rentalFee + deliveryFee), meta: { booking_ref: bookingRef } });
+    if (deposit > 0) {
+      await ledger.addEntry({ userId: req.user.id, type: 'deposit_escrow', amount: -deposit, meta: { booking_ref: bookingRef } });
     }
 
     const nowMs = now();
     const booking = (await svcClient().from('bookings').insert({
       booking_ref: bookingRef, renter_id: req.user.id, owner_id: ownerId, listing_id,
-      start_date, end_date, rental_days, rental_fee, security_deposit,
-      delivery_fee, delivery_requested: !!delivery_requested,
-      delivery_method: delivery_requested ? 'lalamove' : 'pickup',
-      lalamove_fee: lalamove_fee || 0, platform_fee, total_charged,
-      amount_due_owner: rental_fee - platform_fee + delivery_fee,
+      start_date: start, end_date: end, rental_days: days, rental_fee: rentalFee, security_deposit: deposit,
+      delivery_fee: deliveryFee, delivery_requested: method === 'lalamove',
+      pickup_option: pickup_option || 'pickup', delivery_method: method,
+      delivery_distance_km: distance, delivery_vehicle_type: vehicle,
+      lalamove_fee: deliveryFee, platform_fee: platformFee,
+      total_charged: total, amount_due_owner: amountDueOwner,
       status: 'pending', escrow_payment: true, created_at: nowMs, updated_at: nowMs,
     }).select().single());
 
     if (booking.error) throw new Error(booking.error.message);
 
-    // Security deposit custody row
-    if (security_deposit > 0) {
+    if (deposit > 0) {
       await svcClient().from('security_deposits').insert({
         booking_id: booking.data.id, renter_id: req.user.id, owner_id: ownerId,
-        amount: security_deposit, status: 'held', created_at: nowMs,
+        amount: deposit, status: 'held', created_at: nowMs,
       });
     }
 
-    // meeting point (optional)
-    if (meeting_point && meeting_point.name) {
+    // meeting point (optional) — accepts both nested and flat client payloads.
+    const mpName = (meeting_point && meeting_point.name) || meeting_point_name || '';
+    const mpAddr = (meeting_point && meeting_point.address) || meeting_point_address || '';
+    if (mpName) {
       await svcClient().from('meeting_points').insert({
-        booking_id: booking.data.id, point_name: meeting_point.name,
-        point_address: meeting_point.address || '', latitude: meeting_point.latitude || null,
-        longitude: meeting_point.longitude || null, proposed_by: req.user.id,
+        booking_id: booking.data.id, point_name: mpName,
+        point_address: mpAddr, latitude: (meeting_point && meeting_point.latitude) || null,
+        longitude: (meeting_point && meeting_point.longitude) || null, proposed_by: req.user.id,
         created_at: nowMs, updated_at: nowMs,
       });
     }
