@@ -11,6 +11,8 @@ require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const path = require('path');
+const fs = require('fs');
+const prerender = require('./prerender');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -35,7 +37,30 @@ app.use('/api/upload', require('./upload'));
 
 // Static PWA
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
+
+// SPA fallback with server-side prerendering for public SEO routes (reviewer
+// #3/#4/#22): known public pages get a meaningful <title>, meta description,
+// canonical/OG tags and real <h1> content visible even with JS disabled.
+app.get('*', (req, res) => {
+  const p = (req.path || '/').split('?')[0].replace(/\/+$/, '') || '/';
+  const r = prerender.routeFor(p);
+  if (!r) return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const url = prerender.CANON + p;
+  const ogImage = prerender.CANON + '/icons/icon-512.png';
+  const out = html
+    .replace(/<title>.*?<\/title>/, `<title>${r.title}</title>`)
+    .replace(/<meta name="description" content="[^"]*">/, `<meta name="description" content="${r.desc}">`)
+    .replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${url}">`)
+    .replace(/<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${url}">`)
+    .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${r.title}">`)
+    .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${r.desc}">`)
+    .replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${ogImage}">`)
+    .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}">`)
+    .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${r.desc}">`)
+    .replace(/(<main class="page" id="app">)/, `$1\n${r.noscript}`);
+  res.send(out);
+});
 
 app.use((err, req, res, next) => {
   console.error(err);

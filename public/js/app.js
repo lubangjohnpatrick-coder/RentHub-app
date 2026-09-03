@@ -15,6 +15,8 @@ const Root = {
     await this.loadCategories();
     this.bindNav();
     window.addEventListener('hashchange', () => this.route());
+    window.addEventListener('popstate', () => this.route());
+    this.normalizeLegacyHash();
     this.route();
     this.loadUnread();
     if (this.state.user && !this.state.termsAccepted) {
@@ -63,6 +65,12 @@ const Root = {
       }
       const a = e.target.closest('a[data-nav]');
       if (a) {
+        const href = a.getAttribute('href') || '';
+        const path = href.replace(/^#/, '') || '/';
+        if (href.startsWith('#') || href.startsWith('/')) {
+          e.preventDefault();
+          this.nav(path);
+        }
         const links = this.$topnav.querySelector('.nav-links');
         if (links && links.classList.contains('open')) {
           links.classList.remove('open');
@@ -70,6 +78,25 @@ const Root = {
         }
         this.renderNav();
       }
+    });
+    // Global history-mode link handling: any legacy <a href="#/route"> becomes a
+    // real pushState navigation so /category, /listing/:id, chips, bottom nav,
+    // etc. keep clean crawlable URLs instead of hash fragments. Top-nav links are
+    // handled separately in the topnav handler above, so skip them here.
+    document.addEventListener('click', (e) => {
+      if (e.defaultPrevented) return; // topnav data-nav already handled
+      const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a || a.closest('#topnav')) return;
+      const href = a.getAttribute('href') || '';
+      let path = null;
+      if (href.charAt(0) === '#' && href.charAt(1) === '/') {
+        path = href.replace(/^#/, '') || '/';
+      } else if (href.charAt(0) === '/') {
+        path = href;
+      }
+      if (!path) return;
+      e.preventDefault();
+      Root.nav(path);
     });
   },
   renderNav() {
@@ -79,27 +106,27 @@ const Root = {
       const initial = u.full_name ? esc(u.full_name[0]) : '?';
       const firstName = u.full_name ? esc(u.full_name.split(' ')[0]) : 'Me';
       links = `
-        <a data-nav href="#/explore">Explore</a>
-        <a data-nav href="#/owner">For Owners</a>
-        ${u.role === 'admin' ? '<a data-nav href="#/admin">Admin</a>' : ''}
-        <div class="pos-rel"><a data-nav href="#/messages">Messages${this.state.unread ? `<span class="notif-dot">${this.state.unread}</span>` : ''}</a></div>
-        <a data-nav href="#/me" class="nav-me" aria-label="My account" title="${initial} — my account"><span class="avatar only-mobile">${initial}</span><span class="nav-me-name only-wide">${firstName}</span></a>
+        <a data-nav href="/explore">Explore</a>
+        <a data-nav href="/owner">For Owners</a>
+        ${u.role === 'admin' ? '<a data-nav href="/admin">Admin</a>' : ''}
+        <div class="pos-rel"><a data-nav href="/messages">Messages${this.state.unread ? `<span class="notif-dot">${this.state.unread}</span>` : ''}</a></div>
+        <a data-nav href="/me" class="nav-me" aria-label="My account" title="${initial} — my account"><span class="avatar only-mobile">${initial}</span><span class="nav-me-name only-wide">${firstName}</span></a>
       `;
     } else {
-      links = `<a class="btn btn-outline" href="#/login">Log in</a><a class="btn btn-primary" href="#/register">Sign up</a>`;
+      links = `<a class="btn btn-outline" href="/login">Log in</a><a class="btn btn-primary" href="/register">Sign up</a>`;
     }
     this.$topnav.innerHTML = `
       <div class="wrap topnav-inner">
-        <a href="#/" class="brand"><span class="logo">🐝</span><span><b>Go</b>RentHive</span></a>
+        <a href="/" class="brand"><span class="logo">🐝</span><span><b>Go</b>RentHive</span></a>
         <button class="menu-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
         <div class="nav-links"><div class="nav-link-pad">${links}</div></div>
       </div>`;
     this.$bottom.innerHTML = `
-      <a href="#/" class="${this.state.view === 'home' ? 'active' : ''}"><span class="bx">🏠</span>Home</a>
-      <a href="#/explore" class="${this.state.view === 'explore' ? 'active' : ''}"><span class="bx">🔍</span>Explore</a>
-      <a href="#/list" class="${this.state.view === 'list' ? 'active' : ''}"><span class="bx">➕</span>List</a>
-      <a href="${u ? '#/messages' : '#/login'}" class="${this.state.view === 'messages' ? 'active' : ''}"><span class="bx">💬</span>Chat${this.state.unread ? '<span class="notif-dot" style="left:auto;right:calc(50% - 14px)">' + this.state.unread + '</span>' : ''}</a>
-      <a href="${u ? '#/me' : '#/login'}" class="${this.state.view === 'me' ? 'active' : ''}"><span class="bx">👤</span>Me</a>`;
+      <a href="/" class="${this.state.view === 'home' ? 'active' : ''}"><span class="bx">🏠</span>Home</a>
+      <a href="/explore" class="${this.state.view === 'explore' ? 'active' : ''}"><span class="bx">🔍</span>Explore</a>
+      <a href="/list" class="${this.state.view === 'list' ? 'active' : ''}"><span class="bx">➕</span>List</a>
+      <a href="${u ? '/messages' : '/login'}" class="${this.state.view === 'messages' ? 'active' : ''}"><span class="bx">💬</span>Chat${this.state.unread ? '<span class="notif-dot" style="left:auto;right:calc(50% - 14px)">' + this.state.unread + '</span>' : ''}</a>
+      <a href="${u ? '/me' : '/login'}" class="${this.state.view === 'me' ? 'active' : ''}"><span class="bx">👤</span>Me</a>`;
   },
   toast(msg, type = 'info', ms = 2600) {
     const t = document.createElement('div');
@@ -109,9 +136,22 @@ const Root = {
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, ms);
   },
   async route() {
-    const hash = location.hash.replace(/^#/, '') || '/';
+    // History-URL routing with legacy #/... hash fallback. When a real path is
+    // present (/pricing, /explore) we use it. The hash is only honored when the
+    // path is the root and an old #/route bookmark is being opened.
+    const pn = (location.pathname || '/').replace(/\/+$/, '') || '/';
+    let raw;
+    if (pn !== '/') {
+      raw = pn + location.search;
+    } else {
+      const hashPath = location.hash.replace(/^#/, '');
+      raw = (hashPath.length > 1 && (hashPath.startsWith('/') || /^[a-z]/.test(hashPath)))
+        ? (hashPath.replace(/\/+$/, '') || '/') + location.search
+        : '/' + location.search;
+    }
+    const hash = raw.split('?')[0] || '/';
     const parts = hash.split('?')[0].split('/').filter(Boolean);
-    const segs = hash.split('?')[1];
+    const segs = raw.split('?')[1];
     this.renderNav();
     const query = segs ? Object.fromEntries(new URLSearchParams(segs)) : {};
     this.state.params = { parts, query };
@@ -121,13 +161,31 @@ const Root = {
       await this.render(parts, query);
     } catch (e) {
       if (e && e.status === 401 && parts[0] !== 'login' && parts[0] !== 'register') {
-        location.hash = '#/login';
+        this.nav('/login');
         return;
       }
-      this.$app.innerHTML = `<div class="empty"><div class="em">⚠️</div><h3>Something went wrong while processing your request</h3><p>Please try again in a moment. If the problem persists, reach out via the Help Center.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px"><button class="btn btn-primary" onclick="location.reload()">Try Again</button><a class="btn btn-outline" href="#/explore">Return to Rentals</a></div></div>`;
+      this.$app.innerHTML = `<div class="empty"><div class="em">⚠️</div><h3>Something went wrong while processing your request</h3><p>Please try again in a moment. If the problem persists, reach out via the Help Center.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px"><button class="btn btn-primary" onclick="location.reload()">Try Again</button><a class="btn btn-outline" href="/explore">Return to Rentals</a></div></div>`;
       if (typeof console !== 'undefined') console.error('Route render error:', e);
     }
     window.scrollTo(0, 0);
+  },
+  nav(path) {
+    if (!path) path = '/';
+    if (location.pathname + location.search === path && location.hash) {
+      // Same URL but an old # hash is present — normalize it out.
+      history.replaceState(null, '', path);
+    } else {
+      history.pushState(null, '', path);
+    }
+    this.route();
+  },
+  normalizeLegacyHash() {
+    const h = location.hash.replace(/^#/, '');
+    if (h && h.length > 1 && (h.startsWith('/') || /^[a-z]/.test(h))) {
+      // Migrate an old #/route bookmark to a clean /route URL.
+      const path = h.replace(/\/+$/, '') || '/';
+      history.replaceState(null, '', path + location.search);
+    }
   },
   setMeta(title, description, canonicalPath) {
     document.title = title;
@@ -214,7 +272,7 @@ const Root = {
       }
     } catch (e) {
       if (e.status === 401 && route !== 'login' && route !== 'register') {
-        location.hash = '#/login';
+        Root.nav('/login');
         return;
       }
       this.$app.innerHTML = `<div class="empty"><div class="em">⚠️</div><h3>Something went wrong</h3><p>${esc(e.message)}</p></div>`;
@@ -390,7 +448,7 @@ const Root = {
     if (q) p.set('q', q);
     if (city) p.set('city', city);
     if (sd && ed) p.set('range', sd + ',' + ed);
-    location.hash = '#/explore?' + p.toString();
+    Root.nav('/explore?' + p.toString())
   },
 
   /* ================= EXPLORE ================= */
@@ -439,14 +497,14 @@ const Root = {
       if (coords && coords.lat != null && coords.lng != null) { p.set('radius', radius); p.set('lat', coords.lat); p.set('lng', coords.lng); }
       else { this.toast('Enable location access or verify your location to search nearby.', 'error'); }
     }
-    if (!initial) history.replaceState(null, '', '#/explore?' + p.toString());
+    if (!initial) history.replaceState(null, '', '/explore?' + p.toString());
     const data = await API.get('/listings?' + p.toString());
     const el = document.getElementById('ex-results');
     if (!data.length) { el.innerHTML = `<div class="empty"><div class="em">🔍</div><h3>We couldn&#39;t find anything matching${q ? ` &quot;${esc(q)}&quot;` : ''} ${city ? `near ${esc(city)}` : ''}</h3><p>Try a different keyword, another location, or a wider date range.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px"><button class="btn btn-primary btn-sm" onclick="Root.clearExploreFilters()">Browse All Rentals</button><a href="#/requests" class="btn btn-outline btn-sm">Post a rental request →</a></div></div>`; return; }
     el.innerHTML = `<div class="card-grid">${data.map(l => this.listingCard(l)).join('')}</div>`;
   },
   clearExploreFilters() {
-    location.hash = '#/explore';
+    Root.nav('/explore');
   },
   async resolveRadiusCoords() {
     const me = this.state.meLocation;
@@ -666,16 +724,16 @@ const Root = {
     try {
       const d = await API.request('POST', '/bookings', body, { idempotencyKey: idemKey });
       this.toast('Booking requested — funds held in escrow!', 'success');
-      location.hash = '#/booking/' + d.booking.id;
+      Root.nav('/booking/' + d.booking.id);
     } catch (e) {
       if (e.status === 428 && (e.code === 'terms_required')) {
         this.toast('Please accept the Terms & Conditions first.', 'error');
-        location.hash = '#/me?tab=verify';
+        Root.nav('/me?tab=verify');
         return;
       }
       if (e.status === 428) {
         this.toast('Complete identity verification to book.', 'error');
-        location.hash = '#/verify';
+        Root.nav('/verify');
         return;
       }
       if (e.status === 402) {
@@ -689,7 +747,7 @@ const Root = {
           return;
         }
         this.toast('Insufficient wallet balance — top up to continue.', 'error');
-        location.hash = '#/wallet?tab=topup';
+        Root.nav('/wallet?tab=topup');
         return;
       }
       this.toast(e.message || 'Booking failed', 'error');
@@ -706,7 +764,7 @@ const Root = {
         await API.post('/paymongo/confirm', { intent_id: intent.intent_id, payment_id: intent.payment_id });
         this.toast(`Booking payment received — ${fmtMoney(total)} credited to your wallet (sandbox)`, 'success');
         // retry the booking now that the wallet has balance
-        try { const d = await API.request('POST', '/bookings', bookBody, { idempotencyKey: this._bookingIdemKey }); this.toast('Booking requested — funds held in escrow!', 'success'); location.hash = '#/booking/' + d.booking.id; } catch (e2) { location.hash = '#/wallet'; }
+        try { const d = await API.request('POST', '/bookings', bookBody, { idempotencyKey: this._bookingIdemKey }); this.toast('Booking requested — funds held in escrow!', 'success'); Root.nav('/booking/' + d.booking.id); } catch (e2) { Root.nav('/wallet'); }
         return true;
       }
       await this.runPayMongoIntent(intent, 'booking');
@@ -720,10 +778,10 @@ const Root = {
   },
   async toggleFavorite(id) {
     try { await API.post(`/listings/${id}/favorite`); this.toast('Updated favorites', 'success'); }
-    catch (e) { if (e.status === 401) { location.hash = '#/login'; } else this.toast(e.message, 'error'); }
+    catch (e) { if (e.status === 401) { Root.nav('/login'); } else this.toast(e.message, 'error'); }
   },
   async openChat(userId, listingId) {
-    location.hash = '#/messages?to=' + userId + '&listing=' + listingId;
+    Root.nav('/messages?to=' + userId + '&listing=' + listingId);
   },
 
   /* ================= BOOKING DETAIL ================= */
@@ -1184,7 +1242,7 @@ const Root = {
     try {
       if (editId) { await API.put('/listings/' + editId, body); this.toast('Listing updated', 'success'); }
       else { await API.post('/listings', body); this.toast('Listing published!', 'success'); }
-      location.hash = '#/owner';
+      Root.nav('/owner');
     } catch (e) { this.toast(e.message, 'error'); }
   },
 
@@ -1265,7 +1323,7 @@ const Root = {
                 <div class="amt">${fmtMoney(te.amt)}</div>
               </div>`).join('') : '<p style="color:var(--ink-soft)">Complete rentals to see your top earners.</p>'}
             </div>
-            <button class="btn btn-primary btn-block" style="margin-top:14px" onclick="location.hash='#/list'">+ ADD ANOTHER ITEM</button>
+            <button class="btn btn-primary btn-block" style="margin-top:14px" onclick="Root.nav('/list')">+ ADD ANOTHER ITEM</button>
           </div>
 
           <div class="detail-card" style="margin-top:16px">
@@ -1287,7 +1345,7 @@ const Root = {
               <div class="body"><div class="t">${esc(l.title)}</div><div class="s">${fmtMoney(l.price_per_day)}/day · ${l.rental_count} rentals</div></div>
               <span class="pill ${l.status}">${l.status}</span>
             </a>`).join('') || '<p style="color:var(--ink-soft);font-size:13px;margin-top:10px">You haven\'t listed anything yet.</p>'}
-            <button class="btn btn-outline btn-block" style="margin-top:12px" onclick="location.hash='#/list'">+ List an item</button>
+            <button class="btn btn-outline btn-block" style="margin-top:12px" onclick="Root.nav('/list')">+ List an item</button>
           </div>
 
           <div class="booking-box" style="margin-top:14px">
@@ -1445,7 +1503,7 @@ const Root = {
         if (intent.sandbox) {
           await API.post('/paymongo/confirm', { intent_id: intent.intent_id, payment_id: intent.payment_id });
           this.toast(`Topped up ${fmtMoney(amount)} (sandbox)`, 'success');
-          location.hash = '#/wallet';
+          Root.nav('/wallet');
           return;
         }
         await this.runPayMongoIntent(intent, 'topup');
@@ -1517,10 +1575,10 @@ const Root = {
   },
   toastRedirect(kind) {
     if (kind === 'booking') {
-      location.hash = '#/wallet';
+      Root.nav('/wallet');
       this.toast('Payment received — wallet credited. You can now confirm your booking.', 'success');
     } else {
-      location.hash = '#/wallet';
+      Root.nav('/wallet');
     }
   },  // Landing page for PayMongo redirect returns.
   async handlePayMongoCallback(query) {
@@ -1537,11 +1595,11 @@ const Root = {
         try {
           const d = await API.request('POST', '/bookings', bookBody, { idempotencyKey: this._bookingIdemKey });
           this.toast('Booking requested — funds held in escrow!', 'success');
-          location.hash = '#/booking/' + d.booking.id;
+          Root.nav('/booking/' + d.booking.id);
           return;
         } catch (e2) {
           this.toast('Payment received — you can now complete your booking', 'success');
-          location.hash = '#/wallet';
+          Root.nav('/wallet');
           return;
         }
       }
@@ -1655,7 +1713,7 @@ const Root = {
               <span class="meta-pill">${stars(u.vessel_rating)} ${Number(u.vessel_rating).toFixed(1)}</span>
               <button class="btn btn-outline btn-sm" onclick="Root.toggleOwner()">${u.is_owner ? '✓ You are an Owner' : 'Become an Owner'}</button>
             </div>
-            <button class="btn btn-primary btn-block" style="margin-top:14px" onclick="location.hash='#/verify'">🔐 Security &amp; Verification</button>
+            <button class="btn btn-primary btn-block" style="margin-top:14px" onclick="Root.nav('/verify')">🔐 Security &amp; Verification</button>
           </div>
 
           <div class="detail-card" style="margin-top:16px">
@@ -1681,12 +1739,12 @@ const Root = {
         </div>
         <div>
           <div class="booking-box">
-            <button class="btn btn-outline btn-block" onclick="location.hash='#/wallet'">💰 Wallet</button>
-            ${u.is_owner ? `<button class="btn btn-outline btn-block" style="margin-top:8px" onclick="location.hash='#/dashboard'">📊 Seller Dashboard</button>` : ''}
-            <button class="btn ${u.is_premium ? 'btn-outline' : 'btn-primary'} btn-block" style="margin-top:8px" onclick="location.hash='#/premium'">${u.is_premium ? '👑 Premium Active' : '👑 Go Premium'}</button>
-            <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="location.hash='#/favorites'">♡ Favorites</button>
-            <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="location.hash='#/notifications'">🔔 Notifications</button>
-            <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="location.hash='#/requests'">🙏 My Rent Requests</button>
+            <button class="btn btn-outline btn-block" onclick="Root.nav('/wallet')">💰 Wallet</button>
+            ${u.is_owner ? `<button class="btn btn-outline btn-block" style="margin-top:8px" onclick="Root.nav('/dashboard')">📊 Seller Dashboard</button>` : ''}
+            <button class="btn ${u.is_premium ? 'btn-outline' : 'btn-primary'} btn-block" style="margin-top:8px" onclick="Root.nav('/premium')">${u.is_premium ? '👑 Premium Active' : '👑 Go Premium'}</button>
+            <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="Root.nav('/favorites')">♡ Favorites</button>
+            <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="Root.nav('/notifications')">🔔 Notifications</button>
+            <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="Root.nav('/requests')">🙏 My Rent Requests</button>
             <button class="btn btn-dark btn-block" style="margin-top:8px" onclick="Root.logout()">Log out</button>
           </div>
         </div>
@@ -1820,7 +1878,7 @@ const Root = {
           const latitude = pos.coords.latitude, longitude = pos.coords.longitude;
           const r = await API.post('/auth/verify-location', { source: 'gps', latitude, longitude });
           this.state.user = r.user; this.refreshUser(); this.closeModal();
-          this.toast('Location verified by GPS', 'success'); location.hash = '#/me?tab=verify';
+          this.toast('Location verified by GPS', 'success'); Root.nav('/me?tab=verify');
         } catch (e) { this.toast(e.message, 'error'); }
       },
       (err) => this.toast('Could not get GPS: ' + (err.message || 'denied'), 'error'),
@@ -1832,7 +1890,7 @@ const Root = {
     const longitude = parseFloat(document.getElementById('loc-lng').value);
     const address = document.getElementById('loc-addr').value.trim();
     if (!(Number.isFinite(latitude) && Number.isFinite(longitude))) { this.toast('Enter valid latitude and longitude', 'error'); return; }
-    try { const r = await API.post('/auth/verify-location', { source: 'manual', latitude, longitude, address: address || undefined }); this.state.user = r.user; this.refreshUser(); this.closeModal(); this.toast('Location verified', 'success'); location.hash = '#/me?tab=verify'; }
+    try { const r = await API.post('/auth/verify-location', { source: 'manual', latitude, longitude, address: address || undefined }); this.state.user = r.user; this.refreshUser(); this.closeModal(); this.toast('Location verified', 'success'); Root.nav('/me?tab=verify'); }
     catch (e) { this.toast(e.message, 'error'); }
   },
   async toggleOwner() {
@@ -1842,7 +1900,7 @@ const Root = {
   async logout() {
     try { await API.post('/auth/logout'); } catch (e) {}
     this.state.user = null; this.state.collections = null;
-    location.hash = '#/';
+    Root.nav('/');
   },
   async viewPublicProfile(id) {
     // derive from listings owner
@@ -1903,7 +1961,7 @@ const Root = {
       }
       this.state.collections = null;
       this.loadUnread();
-      location.hash = '#/';
+      Root.nav('/');
     } catch (e) { this.toast(e.message, 'error'); }
   },
 

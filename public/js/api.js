@@ -134,14 +134,14 @@ async function serverRequest(target, { method = 'GET', body, token, idempotencyK
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401) {
-      const onAuthPage = typeof window !== 'undefined' && window.location && /^\/(login|register)/.test(window.location.hash);
+      const onAuthPage = typeof window !== 'undefined' && window.location && /^\/(login|register)/.test(window.location.pathname.replace(/\/+$/, ''));
       // Only bounce to login away from the auth pages, and only when we hold a
       // session cookie. The profile check (/auth/me during boot) legitimately
       // returns 401 for logged-out users and must NOT clear auth or redirect —
       // otherwise an unverifiable server-side identity produces a login loop.
       const hasSession = await getAccessToken().then(Boolean).catch(() => false);
       if (!onAuthPage && hasSession && target !== '/auth/me') {
-        try { window.location.hash = '#/login'; } catch (e) {}
+        try { window.history.pushState(null, '', '/login'); window.dispatchEvent(new Event('popstate')); } catch (e) {}
       }
       const err = new Error(data.error || 'Not authenticated');
       err.status = 401;
