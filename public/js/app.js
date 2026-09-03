@@ -1857,8 +1857,21 @@ const Root = {
   },
   async acceptTerms() {
     this.closeModal();
-    try { await API.post('/auth/terms/accept'); this.state.termsAccepted = true; this.toast('Terms accepted', 'success'); this.refreshUser(); }
-    catch (e) { this.toast('Could not save acceptance: ' + e.message, 'error'); }
+    try {
+      // Persist acceptance. Re-read /auth/me to confirm the server now reports
+      // termsAccepted BEFORE doing anything, then update state in-place WITHOUT
+      // a full location.reload() — a reload here races the Supabase write, so
+      // on reload /auth/me would still return termsAccepted:false and the
+      // Terms Update modal would immediately pop back up (reviewer bug).
+      await API.post('/auth/terms/accept');
+      const d = await API.get('/auth/me');
+      this.state.termsAccepted = !!d.termsAccepted;
+      if (!this.state.termsAccepted) throw new Error('acceptance not yet saved');
+      this.renderNav();
+      this.toast('Terms accepted', 'success');
+    } catch (e) {
+      this.toast('Could not save acceptance: ' + e.message, 'error');
+    }
   },
   verifyIdentity() {
     this.modal(`Identity Verification
