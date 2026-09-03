@@ -16,18 +16,19 @@ const getApiBase = () => {
   const direct = w && (w.__GORENTHIVE_API_BASE__ || w.__RENTHUB_API_BASE__ || w.API_BASE_URL || w.GORENTHIVE_API_BASE);
   if (direct) candidates.push(String(direct).replace(/\/+$/, ''));
 
-  const saved = storage && (storage.getItem('gorenthive_api_base') || storage.getItem('renthub_api_base'));
-  if (saved) candidates.push(String(saved).replace(/\/+$/, ''));
-
+  // Serve-first: prefer the page's own origin so a stale localStorage base
+  // (pointing at an old/dead host) can never break API calls or leak elsewhere.
   if (w && w.location && w.location.origin && w.location.origin !== 'file://') {
-    candidates.push(w.location.origin.replace(/\/+$/, ''));
-  }
-  if (w && w.location && (w.location.hostname === 'localhost' || w.location.hostname === '127.0.0.1')) {
+    candidates.unshift(w.location.origin.replace(/\/+$/, ''));
+  } else if (w && w.location && (w.location.hostname === 'localhost' || w.location.hostname === '127.0.0.1')) {
     candidates.push('http://localhost:4000');
     candidates.push('http://10.0.2.2:4000');
   }
   candidates.push('http://localhost:4000');
   candidates.push('http://10.0.2.2:4000');
+
+  const saved = storage && (storage.getItem('gorenthive_api_base') || storage.getItem('renthub_api_base'));
+  if (saved) candidates.push(String(saved).replace(/\/+$/, ''));
 
   return candidates.find((v) => !!v && v.trim() !== '') || '';
 };
@@ -132,11 +133,16 @@ async function serverRequest(target, { method = 'GET', body, token } = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401) {
-      try { await sb()?.auth?.signOut(); } catch (e) {}
-      if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/login') {
+      const onAuthPage = typeof window !== 'undefined' && window.location && /^\/(login|register)/.test(window.location.hash);
+      // Only bounce to login away from the auth pages, and only when we hold a
+      // session cookie. The profile check (/auth/me during boot) legitimately
+      // returns 401 for logged-out users and must NOT clear auth or redirect —
+      // otherwise an unverifiable server-side identity produces a login loop.
+      const hasSession = await getAccessToken().then(Boolean).catch(() => false);
+      if (!onAuthPage && hasSession && target !== '/auth/me') {
         try { window.location.hash = '#/login'; } catch (e) {}
       }
-      const err = new Error('Not authenticated');
+      const err = new Error(data.error || 'Not authenticated');
       err.status = 401;
       err.code = data.code;
       throw err;

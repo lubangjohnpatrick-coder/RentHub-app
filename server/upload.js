@@ -18,7 +18,8 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { files: 10, fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = /^image\/(png|jpe?g|gif|webp|heic|bmp|svg\+xml)/.test(file.mimetype) || file.originalname.match(/\.(png|jpe?g|jpeg|gif|webp)$/i);
+    // Reject SVG (stored XSS vector) and anything that isn't a real raster/browser image.
+    const ok = /^image\/(png|jpe?g|gif|webp|bmp)$/.test(file.mimetype) && /\.(png|jpe?g|jpeg|gif|webp|bmp)$/i.test(file.originalname);
     cb(null, !!ok);
   },
 });

@@ -495,6 +495,8 @@ router.post('/admin/payouts/:id', requireAuth, requireAdmin, async (req, res) =>
   try {
     const id = req.params.id;
     const status = req.body.status;
+    const ALLOWED = ['pending', 'processed', 'completed', 'rejected', 'cancelled'];
+    if (!ALLOWED.includes(status)) return res.status(400).json({ error: 'Invalid payout status' });
     const { data: p, error } = await svcClient().from('payouts').select('*').eq('id', id).limit(1).single();
     if (error || !p) return res.status(404).json({ error: 'Payout not found' });
     await svcClient().from('payouts').update({ status }).eq('id', id);

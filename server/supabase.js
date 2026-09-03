@@ -12,8 +12,15 @@ function getConfig() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anonKey = process.env.SUPABASE_ANON_KEY;
   if (!url) throw new Error('SUPABASE_URL (or SUPABASE_REST_URL) is not set in server/.env');
+  const PLACEHOLDERS = ['', 'your-service-role-key', 'your-project-anon-key'];
+  if (!serviceKey || PLACEHOLDERS.includes(serviceKey)) {
+    // Never silently fall back to the anon key for the service-role client —
+    // money movement and privileged reads would then run under RLS and fail
+    // or over-restrict without an obvious cause.
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured in server/.env');
+  }
   const currentUrl = String(url).replace(/\/rest\/v1$/, '').replace(/\/$/, '');
-  return { url: currentUrl, serviceKey: serviceKey || anonKey, anonKey };
+  return { url: currentUrl, serviceKey, anonKey };
 }
 
 let svc = null;
@@ -22,10 +29,7 @@ let anon = null;
 // Service-role client — full DB access, bypasses RLS. Server only.
 function svcClient() {
   if (svc) return svc;
-  const { url, serviceKey } = getConfig();
-  if (!serviceKey || serviceKey === 'your-service-role-key' || serviceKey === 'your-project-anon-key') {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured in server/.env');
-  }
+  const { url, serviceKey } = getConfig(); // throws if key missing/placeholder
   svc = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
   return svc;
 }
@@ -42,9 +46,12 @@ function anonClient() {
 // Find a client that can verify a user token. Prefer the anon key (least
 // privilege), but fall back to the service-role client so verification still
 // works even when SUPABASE_ANON_KEY is missing/unset in the deploy env.
+// Uses the raw anon key directly (NOT getConfig) so token verification does not
+// require the service-role key to be configured.
 function getVerifyClient() {
-  const { anonKey } = getConfig();
-  if (anonKey) {
+  const url = (process.env.SUPABASE_URL || '').replace(/\/rest\/v1$/, '').replace(/\/$/, '');
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  if (url && anonKey && anonKey !== 'your-project-anon-key') {
     try { return anonClient(); } catch (e) { /* fall through to service */ }
   }
   return svcClient();

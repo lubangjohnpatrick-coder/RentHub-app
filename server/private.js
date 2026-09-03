@@ -355,8 +355,11 @@ router.post('/admin/bookings/:id/dispute', requireAuth, requireAdmin, async (req
 const OFF_PLATFORM_RE = /(\+?[2-9]\d{9,11}\b)|(gcash|paymaya|maya|paypal|venmo|gcash\b)|(\b[a-z0-9._%+-]*@(gmail|yahoo|outlook|hotmail|icloud)\b)|(facebook|messenger|telegram|whatsapp|viber|lazada|shopee)/i;
 
 async function hasConfirmedBooking(a, b) {
-  const { data } = await svcClient().from('bookings').select('id').or(`and(renter_id.eq.${a},owner_id.eq.${b}),and(renter_id.eq.${b},owner_id.eq.${a})`);
-  return (data || []).some((r) => true);
+  const { data } = await svcClient().from('bookings').select('id')
+    .in('status', ['approved', 'active', 'completed'])
+    .or(`and(renter_id.eq.${a},owner_id.eq.${b}),and(renter_id.eq.${b},owner_id.eq.${a})`)
+    .limit(1).maybeSingle();
+  return !!data;
 }
 
 router.post('/messages', requireAuth, async (req, res) => {
@@ -886,8 +889,12 @@ router.get('/admin/listings', requireAuth, requireAdmin, async (req, res) => {
 });
 
 router.post('/admin/listings/:id', requireAuth, requireAdmin, async (req, res) => {
+  const ALLOWED_STATUS = ['active', 'paused', 'removed'];
   const patch = {};
-  if (req.body.status) patch.status = req.body.status;
+  if (req.body.status) {
+    if (!ALLOWED_STATUS.includes(req.body.status)) return res.status(400).json({ error: 'Invalid listing status' });
+    patch.status = req.body.status;
+  }
   if (req.body.featured !== undefined) patch.featured = !!req.body.featured;
   patch.updated_at = now();
   const { error } = await svcClient().from('listings').update(patch).eq('id', req.params.id);
