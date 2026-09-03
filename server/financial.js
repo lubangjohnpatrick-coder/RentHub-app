@@ -248,6 +248,30 @@ async function loadListing(listingId) {
   return svcClient().from('listings').select('*').eq('id', listingId).limit(1).single();
 }
 
+// Date policy (explicit, shared by quote + booking):
+//  - Past start dates are never bookable.
+//  - Same-day (end === start) is a valid 1-day rental.
+//  - end < start (including reversed/ended ranges) is rejected.
+// Returns { ok:true, start, end, days } or { ok:false, status, code, error }.
+function validateBookingDates(startInput, endInput) {
+  const start = new Date(startInput).getTime();
+  const end = new Date(endInput).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return { ok: false, status: 400, code: 'invalid_date', error: 'Please enter valid start and end dates.' };
+  }
+  if (end < start) {
+    return { ok: false, status: 400, code: 'date_order', error: 'The end date must be on or after the start date.' };
+  }
+  // start <= end here; allow equal (same-day = 1 day), reject end < start above.
+  // Reject past start dates. Use a short grace so "today" mid-day bookings that
+  // parse as midnight UTC aren't falsely rejected in a UTC+8 timezone.
+  if (start < Date.now() - 3600000) {
+    return { ok: false, status: 400, code: 'past_date', error: 'The rental start date cannot be in the past.' };
+  }
+  const days = Math.max(1, Math.round((end - start) / REQ_DAYS_MS));
+  return { ok: true, start, end, days };
+}
+
 // Server-computed price quote (shown live in the UI before booking).
 router.post('/bookings/quote', requireAuth, async (req, res) => {
   try {
@@ -255,10 +279,9 @@ router.post('/bookings/quote', requireAuth, async (req, res) => {
     const listing = await loadListing(listing_id);
     if (listing.error || !listing.data) return res.status(404).json({ error: 'Listing not found' });
     const l = listing.data;
-    const start = new Date(start_date).getTime();
-    const end = new Date(end_date).getTime();
-    if (!start || !end || end <= start) return res.status(400).json({ error: 'Invalid dates' });
-    const days = Math.max(1, Math.round((end - start) / REQ_DAYS_MS));
+    const d = validateBookingDates(start_date, end_date);
+    if (!d.ok) return res.status(d.status).json({ error: d.error, code: d.code });
+    const days = d.days;
     const rentalFee = days * (l.price_per_day || 0);
     const method = delivery_method === 'lalamove' || (delivery_method === undefined && delivery_requested) ? 'lalamove' : 'pickup';
     let deliveryFee = 0;
@@ -301,10 +324,9 @@ router.post('/bookings', requireAuth, async (req, res) => {
       return res.status(428).json({ error: 'This listing requires a higher verification level.' + extra + ' Complete verification in your profile first.', code: 'verify_required', required: needLevel, current: userLevel });
     }
 
-    const start = new Date(start_date).getTime();
-    const end = new Date(end_date).getTime();
-    if (!start || !end || end <= start) return res.status(400).json({ error: 'Invalid dates' });
-    const days = Math.max(1, Math.round((end - start) / REQ_DAYS_MS));
+    const d = validateBookingDates(start_date, end_date);
+    if (!d.ok) return res.status(d.status).json({ error: d.error, code: d.code });
+    const start = d.start, end = d.end, days = d.days;
 
     // Idempotency: the same renter + same dates + same listing must never
     // produce two bookings (prevents double-click / retry duplicates even if
@@ -351,12 +373,11 @@ router.post('/bookings', requireAuth, async (req, res) => {
     const ownerId = l.owner_id;
     const bookingRef = 'BK-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
 
-    // Debited once; platform keeps rental escrow + deposit escrow + fees.
-    await ledger.addEntry({ userId: req.user.id, type: 'rental_escrow', amount: -(rentalFee + deliveryFee), meta: { booking_ref: bookingRef } });
-    if (deposit > 0) {
-      await ledger.addEntry({ userId: req.user.id, type: 'deposit_escrow', amount: -deposit, meta: { booking_ref: bookingRef } });
-    }
-
+    // CREATE the booking row FIRST. Only if the insert succeeds do we debit the
+    // escrow. The DB-level GiST exclusion constraint is the authoritative guard
+    // against two concurrent bookings racing past this check; if it fires we
+    // fail cleanly with NO money moved (the race would otherwise debit wallet
+    // escrow for a booking that never exists).
     const nowMs = now();
     const booking = (await svcClient().from('bookings').insert({
       booking_ref: bookingRef, renter_id: req.user.id, owner_id: ownerId, listing_id,
@@ -371,7 +392,25 @@ router.post('/bookings', requireAuth, async (req, res) => {
       status: 'pending', escrow_payment: true, created_at: nowMs, updated_at: nowMs,
     }).select().single());
 
-    if (booking.error) throw new Error(booking.error.message);
+    // Interpret insert errors: a GiST/unique exclusion violation means a
+    // concurrent booking won the race and this one must not be created —
+    // return a clean conflict. Anything else is a real server error.
+    if (booking.error) {
+      // 23P01 = exclusion_violation (the int8range overlap guard),
+      // 23505 = unique_violation (idempotency key). Both mean a race was won
+      // and this booking legitimately must not be created.
+      const raw = (booking.error.message || '').toLowerCase();
+      if (/exclusion|overlap|unique|already exists|23p01|23505/.test(raw)) {
+        return res.status(409).json({ error: 'This item was just booked by someone else for those dates. Please pick different dates.' });
+      }
+      throw new Error(booking.error.message);
+    }
+
+    // Insert succeeded: now debit the wallet escrow (rental + delivery + deposit).
+    await ledger.addEntry({ userId: req.user.id, type: 'rental_escrow', amount: -(rentalFee + deliveryFee), meta: { booking_ref: bookingRef } });
+    if (deposit > 0) {
+      await ledger.addEntry({ userId: req.user.id, type: 'deposit_escrow', amount: -deposit, meta: { booking_ref: bookingRef } });
+    }
 
     if (deposit > 0) {
       await svcClient().from('security_deposits').insert({

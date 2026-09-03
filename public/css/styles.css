@@ -94,7 +94,8 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 @media(min-width:821px){ .only-wide { display: inline-flex; } }
 
-/* FAQ accordions on info pages */
+/* Popular search chips label (separates broad categories from item-level searches) */
+.hero-examples-label { display:block; width:100%; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); margin-bottom:2px; }
 .faq { max-width: 720px; margin: 0 auto; }
 .faq .section-head h2 { font-size: 24px; }
 .faq-item summary::-webkit-details-marker { display: none; }

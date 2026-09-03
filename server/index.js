@@ -17,6 +17,17 @@ const prerender = require('./prerender');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Single canonical host: redirect www.gorenthive.online -> gorenthive.online so
+// every page, canonical/OG URL and the sitemap resolve to ONE origin (SEO).
+const SITE_HOST = process.env.CANON_HOST || 'gorenthive.online';
+app.use((req, res, next) => {
+  const host = (req.get('host') || '').toLowerCase();
+  if (host === 'www.' + SITE_HOST || host === 'www.' + SITE_HOST + ':443') {
+    return res.redirect(301, 'https://' + SITE_HOST + req.originalUrl);
+  }
+  next();
+});
+
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
 // PayMongo webhook must see the RAW body for signature verification, so it is

@@ -16,9 +16,9 @@ const CANON = 'https://gorenthive.online';
 
 const ROUTES = {
   '/': {
-    title: 'GoRentHive | Rent Anything, Earn From What You Own',
+    title: 'GoRentHive | Rent What You Need. Earn From What You Own.',
     desc: 'A peer-to-peer rental marketplace in the Philippines. Rent tools, vehicles, party equipment, cameras and more from people near you — or turn your unused items into income.',
-    h1: 'Need it? Rent it. Own it? Earn from it.',
+    h1: 'Rent What You Need. Earn From What You Own.',
     intro: 'Rent anything from people near you, or earn from the things you already own.',
   },
   '/explore': {

@@ -224,7 +224,7 @@ const Root = {
     const SITE = 'GoRentHive Philippines';
     const q = (query.q || '').trim();
     const M = {
-      home: [ `GoRentHive | Rent Anything, Earn From What You Own`, `Rent tools, vehicles, party equipment, cameras and more from people near you in ${SITE} — or turn your unused items into income.`, '/' ],
+      home: [ `GoRentHive | Rent What You Need. Earn From What You Own.`, `Rent tools, vehicles, party equipment, cameras and more from people near you in ${SITE} — or turn your own unused items into income.`, '/' ],
       explore: [ `${q ? `${q} for Rent in ${SITE}` : `Explore Rentals | ${SITE}`}`, `Rent cameras, tents, speakers, cars, tools and more from local owners in ${SITE}.`, '/explore' ],
       categories: [ `Categories | ${SITE}`, `Browse rental categories — cameras, tents, speakers, tools, vehicles and more in ${SITE}.`, '/categories' ],
       listing: [ `Rental Details | ${SITE}`, `View and book this item for rent in ${SITE}.`, `/listing/${parts[1] || ''}` ],
@@ -334,6 +334,7 @@ const Root = {
             <button class="search-btn" onclick="Root.doSearch()">SEARCH →</button>
           </div>
           <div class="hero-examples">
+            <span class="hero-examples-label">Popular searches</span>
             <a class="chip" href="#/explore?q=Camera">Camera</a>
             <a class="chip" href="#/explore?q=Tent">Tent</a>
             <a class="chip" href="#/explore?q=Speaker">Speaker</a>
