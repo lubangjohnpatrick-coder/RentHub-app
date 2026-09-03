@@ -49,6 +49,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .brand .logo { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--brand), #F5B33D); display: grid; place-items: center; color: #fff; font-size: 18px; }
 .brand span b { color: var(--brand); }
 .nav-links { display: flex; gap: 4px; margin-left: auto; align-items: center; flex-wrap: nowrap; min-width: 0; }
+.nav-links .nav-link-pad { display: inline-flex; align-items: center; gap: 4px; flex-wrap: nowrap; min-width: 0; }
 .nav-links a { padding: 8px 12px; border-radius: 9px; font-weight: 600; font-size: 14px; color: var(--ink-soft); white-space: nowrap; flex-shrink: 0; }
 .nav-links a:hover, .nav-links a.active { color: var(--ink); background: var(--brand-soft); }
 
