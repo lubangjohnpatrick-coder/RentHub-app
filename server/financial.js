@@ -295,6 +295,18 @@ router.post('/bookings', requireAuth, async (req, res) => {
     if (!start || !end || end <= start) return res.status(400).json({ error: 'Invalid dates' });
     const days = Math.max(1, Math.round((end - start) / REQ_DAYS_MS));
 
+    // Idempotency: the same renter + same dates + same listing must never
+    // produce two bookings (prevents double-click / retry duplicates even if
+    // the frontend guard is bypassed). The client sends a stable key derived
+    // from the request; if it matches an earlier booking we return that row
+    // without debiting the wallet again.
+    const keyRaw = req.headers['idempotency-key'] || req.body.idempotency_key ||
+      ['bk', req.user.id, listing_id, start, end].join('|');
+    const clientRequestId = String(keyRaw).slice(0, 120);
+    const { data: existing } = await svcClient().from('bookings')
+      .select('*').eq('renter_id', req.user.id).eq('client_request_id', clientRequestId).limit(1).maybeSingle();
+    if (existing) return res.json({ ok: true, booking: existing, idempotent: true });
+
     // Server-side price computation — never trusts the client.
     const rentalFee = days * (l.price_per_day || 0);
     const method = delivery_method === 'lalamove' || (delivery_method === undefined && delivery_requested) ? 'lalamove' : 'pickup';
@@ -336,6 +348,7 @@ router.post('/bookings', requireAuth, async (req, res) => {
     const nowMs = now();
     const booking = (await svcClient().from('bookings').insert({
       booking_ref: bookingRef, renter_id: req.user.id, owner_id: ownerId, listing_id,
+      client_request_id: clientRequestId,
       start_date: start, end_date: end, rental_days: days, rental_fee: rentalFee, security_deposit: deposit,
       delivery_fee: deliveryFee, delivery_requested: method === 'lalamove',
       pickup_option: pickup_option || 'pickup', delivery_method: method,

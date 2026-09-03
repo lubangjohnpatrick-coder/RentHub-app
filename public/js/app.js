@@ -616,6 +616,15 @@ const Root = {
     } catch (e) { document.getElementById('bk-quote').innerHTML = `<p style="color:var(--red);font-size:13px">${esc(e.message)}</p>`; }
   },
   async doBook(id) {
+    if (this._bookingInFlight) return;
+    this._bookingInFlight = true;
+    try {
+      await this._doBookInner(id);
+    } finally {
+      this._bookingInFlight = false;
+    }
+  },
+  async _doBookInner(id) {
     const sd = document.getElementById('bk-sd').value;
     const ed = document.getElementById('bk-ed').value;
     const dm = document.querySelector('input[name="bk-dm"]:checked');
@@ -623,6 +632,9 @@ const Root = {
     const pubEl = document.getElementById('bk-public');
     const publicPlace = pubEl ? pubEl.checked : false;
     const body = { listing_id: id, start_date: sd, end_date: ed, delivery_method: method, pickup_option: publicPlace ? 'public_place' : 'pickup' };
+    // Stable idempotency key so a double click / retry never double-books.
+    const idemKey = ['bk', this.state.user ? this.state.user.id : '', id, sd, ed].join('::');
+    this._bookingIdemKey = idemKey;
     if (publicPlace) {
       const mpName = document.getElementById('bk-mp-name').value.trim();
       if (!mpName) { this.toast('Please name the agreed public meeting place.', 'error'); return; }
@@ -638,7 +650,7 @@ const Root = {
       }
     }
     try {
-      const d = await API.post('/bookings', body);
+      const d = await API.request('POST', '/bookings', body, { idempotencyKey: idemKey });
       this.toast('Booking requested — funds held in escrow!', 'success');
       location.hash = '#/booking/' + d.booking.id;
     } catch (e) {
@@ -680,7 +692,7 @@ const Root = {
         await API.post('/paymongo/confirm', { intent_id: intent.intent_id, payment_id: intent.payment_id });
         this.toast(`Booking payment received — ${fmtMoney(total)} credited to your wallet (sandbox)`, 'success');
         // retry the booking now that the wallet has balance
-        try { const d = await API.post('/bookings', bookBody); this.toast('Booking requested — funds held in escrow!', 'success'); location.hash = '#/booking/' + d.booking.id; } catch (e2) { location.hash = '#/wallet'; }
+        try { const d = await API.request('POST', '/bookings', bookBody, { idempotencyKey: this._bookingIdemKey }); this.toast('Booking requested — funds held in escrow!', 'success'); location.hash = '#/booking/' + d.booking.id; } catch (e2) { location.hash = '#/wallet'; }
         return true;
       }
       await this.runPayMongoIntent(intent, 'booking');
@@ -1509,7 +1521,7 @@ const Root = {
         const bookBody = this.state._retryBooking;
         delete this.state._retryBooking;
         try {
-          const d = await API.post('/bookings', bookBody);
+          const d = await API.request('POST', '/bookings', bookBody, { idempotencyKey: this._bookingIdemKey });
           this.toast('Booking requested — funds held in escrow!', 'success');
           location.hash = '#/booking/' + d.booking.id;
           return;

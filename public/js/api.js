@@ -121,10 +121,11 @@ async function me() {
   }
 }
 
-async function serverRequest(target, { method = 'GET', body, token } = {}) {
+async function serverRequest(target, { method = 'GET', body, token, idempotencyKey } = {}) {
   const base = getApiBase() || (window.location.origin !== 'file://' ? window.location.origin : 'http://localhost:4000');
   const opts = { method, headers: {} };
   if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (idempotencyKey) opts.headers['Idempotency-Key'] = idempotencyKey;
   if (body !== undefined) {
     opts.headers['Content-Type'] = 'application/json';
     opts.body = JSON.stringify(body);
@@ -156,8 +157,9 @@ async function serverRequest(target, { method = 'GET', body, token } = {}) {
 }
 
 const API = {
-  async request(method, url, body) {
+  async request(method, url, body, opts) {
     const token = await getAccessToken();
+    const idempotencyKey = (opts && opts.idempotencyKey) || undefined;
 
     // Auth endpoints -> Supabase Auth
     if (url === '/auth/login' && method === 'POST') return SupabaseAuth.login(body);
@@ -168,7 +170,7 @@ const API = {
     }
 
     // Everything else -> GoRentHive server (service_role against Supabase)
-    return serverRequest('/api' + url, { method, body, token });
+    return serverRequest('/api' + url, { method, body, token, idempotencyKey });
   },
   get: (url) => API.request('GET', url, undefined),
   post: (url, body) => API.request('POST', url, body || {}),
