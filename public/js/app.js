@@ -342,13 +342,13 @@ const Root = {
     if (l.featured) badges.push(`<span class="badge badge-featured">🔥 FEATURED</span>`);
     if (l.is_bundle) badges.push(`<span class="badge badge-bundle">🎁 BUNDLE</span>`);
     const img = (l.images && l.images[0]) || '/images/svg/placeholder.svg';
-    return `<div class="listing-card" onclick="location.hash='#/listing/${l.id}'">
+    return `<a class="listing-card" href="#/listing/${l.id}">
       <div class="thumb">
-        <img src="${esc(img)}" alt="${esc(l.title)}" loading="lazy">
+        <img src="${esc(img)}" alt="${esc(l.title)}" loading="lazy" decoding="async">
         ${badges.join('')}
       </div>
       <div class="listing-body">
-        <div class="t">${esc(l.title)}</div>
+        <h3 class="t">${esc(l.title)}</h3>
         <div class="meta">📍 ${esc(l.location_city)} · <span class="rating">${stars(l.avg_rating)}</span> · ${l.rental_count ? l.rental_count + ' rentals' : 'New'}</div>
         <div class="price-row">
           <div class="price">${fmtMoney(l.price_per_day)}<small>/day</small></div>
@@ -359,7 +359,7 @@ const Root = {
           <div class="grow"><div class="nm">${esc(l.owner ? l.owner.full_name : 'Owner')} ${l.owner && l.owner.identity_status === 'verified' ? '<span class="verified-chip">✓</span>' : ''}</div>${l.owner ? this.trustChip(l.owner) : ''}</div>
         </div>
       </div>
-    </div>`;
+    </a>`;
   },
   ownerCard(o) {
     return `<a class="cat-card" href="#/profile/${o.id}">
@@ -475,10 +475,11 @@ const Root = {
       </div>` : '';
     this.$app.innerHTML = `
       <div class="wrap" style="padding-top:20px">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="#/">Home</a><span>/</span><a href="#/explore">Explore</a><span>/</span><span>${esc(l.title)}</span></nav>
         <a class="back-btn" href="javascript:history.back()">← Back</a>
         <div class="detail-grid">
           <div>
-            <div class="gallery">${imgs[0] ? `<img src="${esc(imgs[0])}" alt="">` : `<div style="height:100%;display:grid;place-items:center;color:var(--ink-soft)">No image</div>`}</div>
+            <div class="gallery">${imgs[0] ? `<img src="${esc(imgs[0])}" alt="${esc(l.title)}">` : `<div style="height:100%;display:grid;place-items:center;color:var(--ink-soft)">No image</div>`}</div>
             <div style="display:flex;gap:8px;margin-top:10px">${imgs.slice(1, 4).map(i => `<div class="gallery" style="flex:1"><img src="${esc(i)}" style="aspect-ratio:1"></div>`).join('')}</div>
             ${bundleHtml}
             <div class="detail-card" style="margin-top:16px">
@@ -2337,6 +2338,29 @@ const Root = {
           <div style="margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
             <a class="btn btn-primary" href="#/list">Start Earning →</a>
             <a class="btn btn-outline" href="#/help">See Help Center</a>
+          </div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="detail-card">
+          <h3 style="font-size:20px">See what a rental actually costs</h3>
+          <p style="font-size:14px;color:var(--ink-soft);margin:8px 0 18px;max-width:620px">Example: a camera rented for 2 days at ₱1,000/day.</p>
+          <div class="grid-2-side">
+            <div>
+              <h4 style="margin-bottom:6px">Renter pays</h4>
+              <div class="price-line"><span>2 days × ₱1,000/day</span><span>₱2,000</span></div>
+              <div class="price-line"><span>Rental service fee (8%)</span><span>₱160</span></div>
+              <div class="price-line total"><span>Rental payment</span><span>₱2,160</span></div>
+              <div class="price-line deposit"><span>Refundable security deposit (returned)</span><span>₱1,000</span></div>
+              <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">The security deposit is held separately and returned when the item is returned on time and in the agreed condition.</p>
+            </div>
+            <div>
+              <h4 style="margin-bottom:6px">Owner receives</h4>
+              <div class="price-line"><span>Rental amount</span><span>₱2,000</span></div>
+              <div class="price-line fee"><span>Platform fee (8%)</span><span>−₱160</span></div>
+              <div class="price-line total"><span>Owner payout</span><span>₱1,840</span></div>
+              <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">No hidden fees. The full fee breakdown is shown at checkout before you pay.</p>
+            </div>
           </div>
         </div>
       </section>
