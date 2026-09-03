@@ -210,6 +210,15 @@ const Root = {
     let can = document.querySelector('link[rel="canonical"]');
     if (can) can.setAttribute('href', siteUrl + url);
   },
+  // Override the social share image with a per-page image (e.g. the listing's
+  // first photo) for richer Facebook/Instagram/Twitter link previews (#23).
+  setSocialImage(imgUrl) {
+    if (!imgUrl) return;
+    const og = document.querySelector('meta[property="og:image"]');
+    if (og) og.setAttribute('content', imgUrl);
+    const tw = document.querySelector('meta[name="twitter:image"]');
+    if (tw) tw.setAttribute('content', imgUrl);
+  },
   setMetaForRoute(parts, query) {
     const route = parts[0] || 'home';
     const SITE = 'GoRentHive Philippines';
@@ -578,13 +587,24 @@ const Root = {
               <div class="owner-card" style="border-top:none;padding-top:4px">
                 <div class="avatar lg">${esc((l.owner.full_name || '?')[0])}</div>
                 <div class="info grow"><div class="nm">${esc(l.owner.full_name)} ${l.owner.identity_status === 'verified' ? '<span class="verified-chip">✓ Verified</span>' : ''}</div>
-                  <div class="sub">${stars(l.owner.vessel_rating)} ${Number(l.owner.vessel_rating).toFixed(1)} · ${l.owner.successful_rentals} successful rentals</div>
+                  <div class="sub">${stars(l.owner.vessel_rating)} ${Number(l.owner.vessel_rating).toFixed(1)} · ${l.owner.successful_rentals} successful rentals${l.owner.created_at ? ` · Member since ${new Date(l.owner.created_at).getFullYear()}` : ''}</div>
                 </div>
                 <a class="btn btn-outline btn-sm" href="#/profile/${l.owner.id}">View</a>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+                ${l.owner.email_verified ? '<span class="trust-chip verified">✓ Email verified</span>' : ''}
+                ${l.owner.mobile_verified ? '<span class="trust-chip verified">✓ Phone verified</span>' : ''}
+                ${l.owner.identity_status === 'verified' ? '<span class="trust-chip verified">✓ Identity verified</span>' : ''}
+                ${l.owner.trust_score != null ? this.trustChip(l.owner) : ''}
               </div>
               <div style="display:flex;gap:8px;margin-top:8px">
                 ${u ? `<button class="btn btn-outline grow" onclick="Root.openChat('${l.owner.id}', ${l.id})">💬 Message Owner</button>` : `<a class="btn btn-outline grow" href="#/login">💬 Message Owner</a>`}
                 <button class="btn btn-outline" onclick="Root.toggleFavorite(${l.id})">♡</button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px;font-size:13px;color:var(--ink-soft)">
+                <div>🔒 Secure escrow payment</div>
+                <div>🛡 Refundable security deposit</div>
+                <div>📄 Rental agreement before pickup</div>
               </div>
             </div>
             <div class="detail-card" style="margin-top:16px">
@@ -642,6 +662,7 @@ const Root = {
       ed.addEventListener('change', () => this.updateQuote());
       this.updateQuote();
     }
+    if (imgs[0]) this.setSocialImage(imgs[0]);
   },
   onDeliveryChange() {
     const dm = document.querySelector('input[name="bk-dm"]:checked');
@@ -2300,6 +2321,10 @@ const Root = {
     catch (e) { this.toast(e.message, 'error'); }
   },
   /* ================= INFO / LANDING PAGES ================= */
+  faq(items) {
+    return `<div class="faq"><div class="section-head" style="justify-content:center;text-align:center;flex-direction:column"><h2>Common questions</h2></div>
+      ${items.map(([q, a]) => `<details class="faq-item" style="margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:14px 16px"><summary style="cursor:pointer;font-weight:700;list-style:none"><span style="margin-right:8px">❓</span>${esc(q)}</summary><p style="color:var(--ink-soft);font-size:14px;margin-top:8px">${a}</p></details>`).join('')}</div>`;
+  },
   viewRent() {
     const cats = this.state.categories.slice(0, 8);
     this.$app.innerHTML = `<div class="landing-hero">
@@ -2334,6 +2359,16 @@ const Root = {
           <div><h2>CAN'T FIND IT?</h2><p style="opacity:.9;margin-top:6px">Post what you need and let owners come to you.</p></div>
           <div><a class="btn btn-primary btn-lg" href="#/requests">POST A RENTAL REQUEST</a></div>
         </div>
+      </section>
+      <section class="section">${this.faq([
+        ['What can I rent on GoRentHive?', 'Cameras, tents, speakers, generators, vehicles, tools, sports and party gear, formal wear and more — listed by local owners near you.'],
+        ['How much does it cost?', 'You pay the owner\'s daily rate plus a small GoRentHive platform fee and a fully refundable security deposit. The exact total is shown before you book.'],
+        ['How do I search and book?', 'Use the search bar to find an item and dates, open the listing, choose pickup or delivery, then request to rent.'],
+        ['How do I pay?', 'Pay securely in-app. Your payment is held in escrow until the rental is completed, so neither party is left unprotected.'],
+        ['Is there a deposit?', 'Yes — a refundable security deposit is held for the rental and returned once the item is returned in good condition.'],
+        ['What if the owner cancels?', 'You get a full refund of your rental payment and deposit if the owner cancels.'],
+        ['What if the item is damaged?', 'You record the item\'s condition and any existing damage at handover and at return. If new damage occurs, a dispute process reviews photos and evidence to decide the deduction.'],
+      ])}
       </section>
     </div>`;
   },
@@ -2375,6 +2410,16 @@ const Root = {
           <div><h2>READY TO START EARNING?</h2><p style="opacity:.9;margin-top:6px">Listing is free. You only pay a small platform fee per completed rental.</p></div>
           <div><a class="btn btn-primary btn-lg" href="#/list">Start Earning Today →</a></div>
         </div>
+      </section>
+      <section class="section">${this.faq([
+        ['What can I list?', 'Almost anything you own that others might need: cameras, tools, tents, speakers, vehicles, sports gear, formal wear and more.'],
+        ['How much can I earn?', 'You set your own daily price, so earnings depend on your item and demand. You keep the daily rate minus the small platform fee.'],
+        ['What commission does GoRentHive take?', 'A small platform fee applies per completed rental (a percentage of the daily rate, with a minimum). The exact fee is shown before each booking.'],
+        ['When do I get paid?', 'The rental payment is held in escrow and released to your wallet once the rental is completed and the item is returned.'],
+        ['Who pays the deposit?', 'The renter pays the refundable security deposit. It is held in escrow and returned to the renter, or used to cover damage, verified through photos and condition records.'],
+        ['What if the renter damages my item?', 'You record condition at handover. If the item returns damaged, you open a dispute with photos and evidence; the deposit covers verified damage.'],
+        ['Can I reject a booking?', 'Yes. Every request is sent to you for approval first, and you can reject or cancel it.'],
+      ])}
       </section>
     </div>`;
   },

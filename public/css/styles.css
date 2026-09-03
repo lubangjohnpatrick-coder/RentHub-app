@@ -94,6 +94,11 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 @media(min-width:821px){ .only-wide { display: inline-flex; } }
 
+/* FAQ accordions on info pages */
+.faq { max-width: 720px; margin: 0 auto; }
+.faq .section-head h2 { font-size: 24px; }
+.faq-item summary::-webkit-details-marker { display: none; }
+
 /* ============ Hero ============ */
 /* ============ Hero ============ */
 .btn-outline-light { border: 1.5px solid rgba(27,36,48,.18); color: var(--ink); background: #fff; }
