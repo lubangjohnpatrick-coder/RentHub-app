@@ -1856,8 +1856,9 @@ const Root = {
       <button class="btn btn-primary btn-block" onclick="Root.acceptTerms()">I accept the Terms &amp; Conditions</button>`, 'close');
   },
   async acceptTerms() {
-    try { await API.post('/auth/terms/accept'); this.state.termsAccepted = true; this.closeModal(); this.toast('Terms accepted', 'success'); this.refreshUser(); }
-    catch (e) { this.toast(e.message, 'error'); }
+    this.closeModal();
+    try { await API.post('/auth/terms/accept'); this.state.termsAccepted = true; this.toast('Terms accepted', 'success'); this.refreshUser(); }
+    catch (e) { this.toast('Could not save acceptance: ' + e.message, 'error'); }
   },
   verifyIdentity() {
     this.modal(`Identity Verification
