@@ -76,12 +76,14 @@ const Root = {
     const u = this.state.user;
     let links = '';
     if (u) {
+      const initial = u.full_name ? esc(u.full_name[0]) : '?';
+      const firstName = u.full_name ? esc(u.full_name.split(' ')[0]) : 'Me';
       links = `
         <a data-nav href="#/explore">Explore</a>
-        <a data-nav href="#/owner" class="only-wide">For Owners</a>
+        <a data-nav href="#/owner">For Owners</a>
         ${u.role === 'admin' ? '<a data-nav href="#/admin">Admin</a>' : ''}
         <div class="pos-rel"><a data-nav href="#/messages">Messages${this.state.unread ? `<span class="notif-dot">${this.state.unread}</span>` : ''}</a></div>
-        <a data-nav href="#/me"><span class="avatar">${u.full_name ? esc(u.full_name[0]) : '?'}</span></a>
+        <a data-nav href="#/me" class="nav-me" aria-label="My account"><span class="avatar">${initial}</span><span class="nav-me-name only-wide">${firstName}</span></a>
       `;
     } else {
       links = `<a class="btn btn-outline" href="#/login">Log in</a><a class="btn btn-primary" href="#/register">Sign up</a>`;
