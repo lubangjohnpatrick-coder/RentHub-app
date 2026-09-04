@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v6-clean-ui';
+const CACHE = 'gorenthive-v7-clean-ui';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -13,7 +13,7 @@ const APP_SHELL = [
   '/js/location-hardening.js',
   '/js/launch-ready.js',
   '/js/private-media.js',
-  '/js/terms-fix.js',
+  '/js/legal-acceptance.js',
   '/js/ui-shell.js',
   '/brand/gorenthive-mark.png',
   '/brand/gorenthive-wordmark.png',
