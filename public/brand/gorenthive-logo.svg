@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 220" role="img" aria-labelledby="t d">
+<title id="t">GoRentHive logo</title><desc id="d">GoRentHive wordmark with a golden hexagonal G and bee.</desc>
+<defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFD43B"/><stop offset=".5" stop-color="#FFB800"/><stop offset="1" stop-color="#F29A00"/></linearGradient></defs>
+<g transform="translate(12 12)"><path d="M96 10 172 54v88l-76 44-76-44V54z" fill="none" stroke="url(#gold)" stroke-width="17" stroke-linejoin="round"/><path d="M97 50c-29 0-51 22-51 50s22 50 51 50c20 0 38-9 49-23V91H94v23h27v6c-6 6-14 10-24 10-17 0-30-13-30-30s13-30 31-30c10 0 19 4 26 11l16-18c-10-10-25-13-43-13z" fill="url(#gold)"/>
+<g transform="translate(126 4) rotate(15)"><ellipse cx="15" cy="18" rx="12" ry="18" fill="#FFC400" stroke="#0B1F3A" stroke-width="4"/><path d="M7 9h16M5 20h20" stroke="#0B1F3A" stroke-width="5"/><ellipse cx="3" cy="8" rx="8" ry="12" fill="#EEF5FF" stroke="#0B1F3A" stroke-width="3"/><ellipse cx="28" cy="7" rx="8" ry="12" fill="#EEF5FF" stroke="#0B1F3A" stroke-width="3"/><circle cx="16" cy="-1" r="7" fill="#0B1F3A"/><path d="M12-7 7-14M20-7l5-7" stroke="#0B1F3A" stroke-width="2.5" stroke-linecap="round"/></g></g>
+<text x="205" y="116" font-family="Inter,Arial,sans-serif" font-size="86" font-weight="800" fill="#0B1F3A">GoRent</text><text x="508" y="116" font-family="Inter,Arial,sans-serif" font-size="86" font-weight="800" fill="url(#gold)">Hive</text>
+<text x="208" y="158" font-family="Inter,Arial,sans-serif" font-size="23" font-weight="600" letter-spacing="1.5" fill="#40506A">Rent What You Need. Earn From What You Own.</text>
+</svg>
