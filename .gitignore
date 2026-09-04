@@ -1,7 +1,31 @@
+# Dependencies
 node_modules/
-data/
-shots/
-*.log
+
+# Environment / secrets
 .env
-public/uploads/*
-!public/uploads/README.md
+.env.*
+!.env.example
+
+# Runtime data
+/data/
+/public/uploads/*
+!/public/uploads/README.md
+
+# Build outputs
+/dist/
+/build/
+/coverage/
+/android/.gradle/
+/android/app/build/
+
+# QA / local artifacts
+/shots/
+*.log
+*.tmp
+*.swp
+
+# OS / IDE noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
