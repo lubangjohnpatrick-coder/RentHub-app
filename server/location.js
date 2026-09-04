@@ -58,7 +58,7 @@ router.post('/auth/verify-location', requireAuth, async (req, res) => {
 
 // Radius search always uses the authenticated user's recently captured GPS fix.
 // Client-supplied lat/lng/distance are ignored. Exact listing coordinates are
-// never returned to the browser from this endpoint.
+// used only server-side for distance calculation and are never returned.
 router.get('/listings/nearby', requireAuth, async (req, res) => {
   const radius = Math.min(100, Math.max(1, Number(req.query.radius_km || 10)));
   const q = String(req.query.q || '').trim().toLowerCase();
@@ -75,7 +75,7 @@ router.get('/listings/nearby', requireAuth, async (req, res) => {
   }
 
   let query = svcClient().from('listings')
-    .select('id,title,description,price_per_day,security_deposit,category_id,owner_id,location_barangay,location_city,location_province,latitude,longitude,status,featured,avg_rating,rental_count')
+    .select('id,title,description,price_per_day,security_deposit,category_id,owner_id,location_barangay,location_city,location_province,latitude,longitude,status,featured,is_bundle,rental_count')
     .eq('status', 'active');
   if (category) query = query.eq('category_id', category);
   const { data, error } = await query;
@@ -84,37 +84,59 @@ router.get('/listings/nearby', requireAuth, async (req, res) => {
   let candidates = (data || []).filter((l) => validLat(Number(l.latitude)) && validLng(Number(l.longitude)));
   if (q) candidates = candidates.filter((l) => (String(l.title || '') + ' ' + String(l.description || '')).toLowerCase().includes(q));
 
+  // Filter by radius before secondary lookups so we only retrieve public card
+  // metadata for listings that may actually be returned.
+  candidates = candidates.map((l) => ({
+    ...l,
+    distance_km: distanceKm(Number(u.latitude), Number(u.longitude), Number(l.latitude), Number(l.longitude)),
+  })).filter((l) => l.distance_km <= radius);
+
   const listingIds = candidates.map((l) => l.id);
   const ownerIds = [...new Set(candidates.map((l) => l.owner_id).filter(Boolean))];
-  const [imgRes, ownerRes] = await Promise.all([
-    listingIds.length ? svcClient().from('listing_images').select('listing_id,url,sort_order').in('listing_id', listingIds) : Promise.resolve({ data: [] }),
-    ownerIds.length ? svcClient().from('users').select('id,full_name,identity_status,vessel_rating,successful_rentals').in('id', ownerIds) : Promise.resolve({ data: [] }),
+  const [imgRes, ownerRes, reviewRes] = await Promise.all([
+    listingIds.length ? svcClient().from('listing_images').select('listing_id,url,is_primary,sort_order').in('listing_id', listingIds) : Promise.resolve({ data: [], error: null }),
+    ownerIds.length ? svcClient().from('users').select('id,full_name,identity_status,vessel_rating,successful_rentals').in('id', ownerIds) : Promise.resolve({ data: [], error: null }),
+    listingIds.length ? svcClient().from('listing_reviews').select('listing_id,rating').in('listing_id', listingIds) : Promise.resolve({ data: [], error: null }),
   ]);
+  if (imgRes.error || ownerRes.error || reviewRes.error) {
+    return res.status(500).json({ error: (imgRes.error || ownerRes.error || reviewRes.error).message });
+  }
+
   const images = {};
   for (const row of imgRes.data || []) (images[row.listing_id] = images[row.listing_id] || []).push(row);
   const owners = new Map((ownerRes.data || []).map((o) => [o.id, o]));
+  const ratings = {};
+  for (const row of reviewRes.data || []) {
+    const x = ratings[row.listing_id] || (ratings[row.listing_id] = { sum: 0, count: 0 });
+    x.sum += Number(row.rating) || 0;
+    x.count += 1;
+  }
 
-  const items = candidates.map((l) => ({
-    id: l.id,
-    title: l.title,
-    description: l.description,
-    price_per_day: l.price_per_day,
-    security_deposit: l.security_deposit,
-    category_id: l.category_id,
-    location_barangay: l.location_barangay,
-    location_city: l.location_city,
-    location_province: l.location_province,
-    featured: !!l.featured,
-    avg_rating: l.avg_rating,
-    rental_count: l.rental_count,
-    images: (images[l.id] || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((x) => x.url),
-    owner: owners.get(l.owner_id) || { id: l.owner_id, full_name: 'Owner' },
-    distance_km: distanceKm(Number(u.latitude), Number(u.longitude), Number(l.latitude), Number(l.longitude)),
-  }))
-    .filter((l) => l.distance_km <= radius)
+  const items = candidates
     .sort((a, b) => a.distance_km - b.distance_km)
-    .map((l) => ({ ...l, distance_km: Math.round(l.distance_km * 10) / 10 }));
+    .map((l) => {
+      const rating = ratings[l.id];
+      return {
+        id: l.id,
+        title: l.title,
+        description: l.description,
+        price_per_day: l.price_per_day,
+        security_deposit: l.security_deposit,
+        category_id: l.category_id,
+        location_barangay: l.location_barangay,
+        location_city: l.location_city,
+        location_province: l.location_province,
+        featured: !!l.featured,
+        is_bundle: !!l.is_bundle,
+        avg_rating: rating && rating.count ? Math.round((rating.sum / rating.count) * 10) / 10 : 0,
+        rental_count: Number(l.rental_count || 0),
+        images: (images[l.id] || []).sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || (a.sort_order || 0) - (b.sort_order || 0)).map((x) => x.url),
+        owner: owners.get(l.owner_id) || { id: l.owner_id, full_name: 'Owner' },
+        distance_km: Math.round(l.distance_km * 10) / 10,
+      };
+    });
 
+  res.setHeader('Cache-Control', 'no-store');
   res.json({ ok: true, radius_km: radius, count: items.length, listings: items });
 });
 
