@@ -39,6 +39,7 @@ app.get('/healthz', (req, res) => res.json({ ok: true, name: 'GoRentHive', launc
 // Order matters. Hardened compatibility routes MUST run before older routes.
 app.use('/api', require('./no-delivery'));
 app.use('/api', require('./location'));
+app.use('/api', require('./profile-location'));
 app.use('/api', require('./booking-v2'));
 app.use('/api', require('./launch-hardening'));
 app.use('/api', require('./verification-v2'));

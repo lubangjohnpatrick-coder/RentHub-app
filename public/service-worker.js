@@ -1,11 +1,12 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v7-clean-ui';
+const CACHE = 'gorenthive-v8-profile-location';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/css/styles.css',
   '/css/launch-ready.css',
   '/css/app-theme.css',
+  '/css/profile-experience.css',
   '/js/vendor/supabase.js',
   '/js/supabase-config.js',
   '/js/api.js',
@@ -15,6 +16,7 @@ const APP_SHELL = [
   '/js/private-media.js',
   '/js/legal-acceptance.js',
   '/js/ui-shell.js',
+  '/js/profile-experience.js',
   '/brand/gorenthive-mark.png',
   '/brand/gorenthive-wordmark.png',
   '/manifest.webmanifest',

@@ -39,7 +39,12 @@ jobs:
           test -f supabase/migrations/2026-09-04-location-hardening.sql
           test -f supabase/migrations/2026-09-04-private-media.sql
           test -f supabase/migrations/2026-09-04-deployment-readiness.sql
+          test -f supabase/migrations/2026-09-05-profile-saved-locations.sql
           grep -q "client_request_id" supabase/migrations/2026-09-04-deployment-readiness.sql
+          grep -q "saved_locations" supabase/migrations/2026-09-05-profile-saved-locations.sql
+          grep -q "profile-photos" supabase/migrations/2026-09-05-profile-saved-locations.sql
+          grep -q "Coordinates cannot be edited manually" server/profile-location.js
+          grep -q "MAX_GPS_ACCURACY_M = 100" server/profile-location.js
           grep -q "key: GATEWAY" render.yaml
           grep -q "value: paymongo" render.yaml
           grep -q "GoRentHive commission is deducted from owner earnings" server/booking-v2.js
@@ -60,6 +65,8 @@ jobs:
           const fs = require('fs');
           const source = fs.readFileSync('server/index.js', 'utf8');
           const routers = [
+            "require('./location')",
+            "require('./profile-location')",
             "require('./booking-v2')",
             "require('./launch-hardening')",
             "require('./verification-v2')",
