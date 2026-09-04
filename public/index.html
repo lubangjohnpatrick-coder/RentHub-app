@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#0B1F3A">
   <meta name="color-scheme" content="light">
   <link rel="canonical" href="https://gorenthive.online/">
+
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GoRentHive">
   <meta property="og:locale" content="en_PH">
@@ -17,29 +18,35 @@
   <meta property="og:description" content="Find verified nearby rentals by radius in the Philippines—or earn from useful items you already own.">
   <meta property="og:image" content="https://gorenthive.online/brand/gorenthive-mark.png">
   <meta property="og:image:alt" content="GoRentHive peer-to-peer rental marketplace">
+
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="GoRentHive | Rent What You Need. Earn From What You Own.">
   <meta name="twitter:description" content="Find verified nearby rentals by radius in the Philippines—or earn from useful items you already own.">
   <meta name="twitter:image" content="https://gorenthive.online/brand/gorenthive-mark.png">
+
   <meta name="apple-mobile-web-app-title" content="GoRentHive">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/brand/gorenthive-mark.png">
   <link rel="icon" type="image/png" href="/brand/gorenthive-mark.png">
+  <link rel="preload" as="image" href="/brand/gorenthive-wordmark.png">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Production styles: base behavior, launch-specific surfaces, then one theme owner. -->
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="/css/launch-ready.css">
-  <link rel="stylesheet" href="/css/brand-refresh.css">
-  <link rel="stylesheet" href="/css/homepage-redesign.css">
-  <link rel="stylesheet" href="/css/theme-unification.css">
-  <link rel="stylesheet" href="/css/reference-homepage.css">
+  <link rel="stylesheet" href="/css/app-theme.css">
+
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"WebSite","name":"GoRentHive","url":"https://gorenthive.online/","description":"Philippine peer-to-peer rental marketplace for finding nearby rentals and earning from useful items you own."}
   </script>
   <script type="application/ld+json">
   {
-    "@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    "@context":"https://schema.org",
+    "@type":"FAQPage",
+    "mainEntity":[
       {"@type":"Question","name":"What is GoRentHive?","acceptedAnswer":{"@type":"Answer","text":"GoRentHive is a peer-to-peer rental marketplace in the Philippines. Users can rent useful items from nearby owners or list items they own to earn rental income."}},
       {"@type":"Question","name":"How are GoRentHive fees calculated?","acceptedAnswer":{"@type":"Answer","text":"GoRentHive deducts an 8% commission from the owner's completed rental earnings. The renter's refundable security deposit is separate and is not GoRentHive revenue."}},
       {"@type":"Question","name":"How does nearby search work?","acceptedAnswer":{"@type":"Answer","text":"Radius search uses a recent verified device GPS location. Manual coordinates are not treated as a verified location, and exact listing coordinates are not exposed in nearby search results."}},
@@ -54,10 +61,14 @@
   <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
   <main class="page" id="app" tabindex="-1"></main>
   <nav class="bottom-nav" id="bottomnav" aria-label="Primary mobile navigation"></nav>
+
   <footer class="footer">
     <div class="wrap">
       <div class="footer-grid">
-        <div><div class="brand logo"><span class="logo">🐝</span><span><b>Go</b>RentHive</span></div><p class="tagline">Rent what you need. Earn from what you own. A peer-to-peer rental marketplace built for local, documented transactions.</p></div>
+        <div>
+          <div class="brand logo"><span class="logo">🐝</span><span><b>Go</b>RentHive</span></div>
+          <p class="tagline">Rent what you need. Earn from what you own. A peer-to-peer rental marketplace built for local, documented transactions.</p>
+        </div>
         <div><h4>Marketplace</h4><ul><li><a href="/explore">Explore</a></li><li><a href="/categories">Categories</a></li><li><a href="/list">List an Item</a></li><li><a href="/rent">Rent</a></li><li><a href="/earn">Earn</a></li><li><a href="/pricing">Pricing</a></li></ul></div>
         <div><h4>Learn</h4><ul><li><a href="/how-it-works">How It Works</a></li><li><a href="/trust-safety">Trust & Safety</a></li><li><a href="/about">About GoRentHive</a></li><li><a href="/help">Help Center</a></li><li><a href="/contact">Contact Us</a></li></ul></div>
         <div><h4>Legal</h4><ul><li><a href="/legal/terms">Terms & Conditions</a></li><li><a href="/legal/privacy">Privacy Policy</a></li><li><a href="/legal/rental_agreement">Rental Agreement</a></li><li><a href="/legal/prohibited">Prohibited Items</a></li></ul></div>
@@ -66,6 +77,8 @@
       <p style="font-size:11.5px;opacity:.72;margin-top:24px">© 2026 GoRentHive. All rights reserved. GoRentHive facilitates peer-to-peer rentals, does not own listed inventory, and does not operate a delivery service.</p>
     </div>
   </footer>
+
+  <!-- Runtime order is deliberate: data/API, core app, security modules, then one presentation shell. -->
   <script src="/js/vendor/supabase.js"></script>
   <script src="/js/supabase-config.js"></script>
   <script src="/js/api.js"></script>
@@ -74,8 +87,6 @@
   <script src="/js/launch-ready.js"></script>
   <script src="/js/private-media.js"></script>
   <script src="/js/terms-fix.js"></script>
-  <script src="/js/brand-refresh.js"></script>
-  <script src="/js/homepage-redesign.js"></script>
-  <script src="/js/reference-homepage.js"></script>
+  <script src="/js/ui-shell.js"></script>
 </body>
 </html>
