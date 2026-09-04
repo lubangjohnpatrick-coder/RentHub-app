@@ -7,6 +7,8 @@
     "start": "node server/index.js",
     "test": "node server/smoketest.js",
     "qa:syntax": "find server -name '*.js' -print0 | xargs -0 -n1 node --check && find public/js -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "qa:assets": "node server/asset-audit.js",
+    "qa": "npm run qa:syntax && npm run qa:assets",
     "mobile-test": "node server/mobiletest.js",
     "security-test": "node server/securitest.js",
     "dispute-test": "node server/disputetest.js",
