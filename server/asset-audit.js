@@ -19,6 +19,8 @@ const retiredAssets = [
   '/js/terms-fix.js',
 ];
 
+const APP_ROUTE_RE = /^\/(?:api|explore|categories|listing|booking|list|rent|earn|pricing|how-it-works|trust-safety|about|help|contact|legal|register|login|owner|dashboard|premium|messages|favorites|wallet|me|profile|requests|admin|verify)(?:\/|$|\?)/;
+
 function localPath(url) {
   if (!url || !url.startsWith('/') || url.startsWith('//')) return null;
   const clean = url.split(/[?#]/, 1)[0];
@@ -35,7 +37,7 @@ function collectIndexAssets(html) {
   let match;
   while ((match = re.exec(html))) {
     const url = match[1];
-    if (/^\/(?:api|explore|categories|list|rent|earn|pricing|how-it-works|trust-safety|about|help|contact|legal|register|login|owner)(?:\/|$|\?)/.test(url)) continue;
+    if (APP_ROUTE_RE.test(url)) continue;
     assets.add(url);
   }
   return [...assets];
@@ -73,12 +75,14 @@ function main() {
     '/css/styles.css',
     '/css/launch-ready.css',
     '/css/app-theme.css',
+    '/css/profile-experience.css',
     '/js/app.js',
     '/js/location-hardening.js',
     '/js/launch-ready.js',
     '/js/private-media.js',
     '/js/legal-acceptance.js',
     '/js/ui-shell.js',
+    '/js/profile-experience.js',
   ];
   for (const asset of required) {
     assert(html.includes(asset), `index.html must load required production asset: ${asset}`);
