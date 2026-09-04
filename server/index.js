@@ -41,6 +41,7 @@ app.use('/api', require('./no-delivery'));
 app.use('/api', require('./location'));
 app.use('/api', require('./booking-v2'));
 app.use('/api', require('./launch-hardening'));
+app.use('/api', require('./verification-v2'));
 app.use('/api', require('./media'));
 app.use('/api', require('./financial'));
 app.use('/api', require('./private'));
