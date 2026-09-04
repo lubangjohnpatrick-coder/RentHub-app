@@ -10,6 +10,8 @@ const prerender = require('./prerender');
 const app = express();
 const PORT = process.env.PORT || 4000;
 const SITE_HOST = process.env.CANON_HOST || 'gorenthive.online';
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
 app.use((req, res, next) => {
   const host = (req.get('host') || '').toLowerCase();
@@ -17,32 +19,60 @@ app.use((req, res, next) => {
   next();
 });
 
+// The SPA still contains legacy inline event handlers, so a strict CSP would
+// currently break the UI. Helmet's other production headers remain enabled;
+// CSP should be tightened after the inline handlers are migrated.
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
 const { handleWebhook } = require('./paymongo-webhook');
-app.post('/api/paymongo/webhook', express.raw({ type: 'application/json' }), handleWebhook);
+app.post('/api/paymongo/webhook', express.raw({ type: 'application/json', limit: '1mb' }), handleWebhook);
 app.use(express.json({ limit: '2mb' }));
 
-app.get('/healthz', (req, res) => res.json({ ok: true, name: 'GoRentHive' }));
+// Never cache authenticated/API JSON at shared proxies or browsers.
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  next();
+});
 
+app.get('/healthz', (req, res) => res.json({ ok: true, name: 'GoRentHive', launchReady: true }));
+
+// Order matters. Hardened compatibility routes MUST run before the older
+// implementations so stale clients cannot bypass current launch rules.
 app.use('/api', require('./no-delivery'));
 app.use('/api', require('./location'));
+app.use('/api', require('./booking-v2'));
+app.use('/api', require('./launch-hardening'));
 app.use('/api', require('./financial'));
 app.use('/api', require('./private'));
-app.use('/api', require('./launch-hardening'));
 app.use('/api/upload', require('./upload'));
 
 const setUtf8 = (res) => {
   const ct = res.getHeader('Content-Type') || '';
   if (ct && !/charset/i.test(ct)) res.setHeader('Content-Type', ct + '; charset=utf-8');
 };
-app.use(express.static(path.join(__dirname, '..', 'public'), { setHeaders: (res, filePath) => {
-  if (/\.(html|css|js|json|svg)$/i.test(filePath)) setUtf8(res);
-}}));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (/\.(html|css|js|json|svg)$/i.test(filePath)) setUtf8(res);
+    // HTML and service worker must update immediately. Versioned static assets
+    // can be revalidated rather than being held indefinitely by stale caches.
+    if (/index\.html$|service-worker\.js$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else if (/\.(css|js|json|webmanifest)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    }
+  },
+}));
+
+const PRIVATE_PATH = /^\/(admin|me|messages|wallet|booking|dashboard|favorites|verify|premium)(\/|$)/;
 
 app.get('*', (req, res) => {
   const p = (req.path || '/').split('?')[0].replace(/\/+$/, '') || '/';
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  if (PRIVATE_PATH.test(p)) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+
   const r = prerender.routeFor(p);
   if (!r) return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
@@ -62,15 +92,10 @@ app.get('*', (req, res) => {
   res.send(out);
 });
 
-app.use((req, res, next) => {
-  if (!req.path.startsWith('/api/') && res.getHeader('Content-Type') == null) res.type('html');
-  next();
-});
-
 app.use((err, req, res, next) => {
   console.error(err);
   if (res.headersSent) return next(err);
   res.status(err.status || 500).json({ error: err.message || 'Server error' });
 });
 
-app.listen(PORT, () => console.log('GoRentHive (Supabase) running on http://localhost:' + PORT));
+app.listen(PORT, () => console.log('GoRentHive running on http://localhost:' + PORT));
