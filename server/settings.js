@@ -23,22 +23,20 @@ async function setSetting(key, value) {
   if (error) throw new Error('Settings error: ' + error.message);
 }
 
-// Commission = max(8% of rental fee, 20). Applies to rental fee only.
+// GoRentHive commission is exactly the configured percentage of the rental
+// fee (8% by default). There is intentionally no minimum commission: the
+// owner keeps 92% of the rental fee at the default rate.
 async function computePlatformFee(rentalPrice) {
   const percent = parseFloat((await getSetting('platform_percent', '8'))) || 8;
-  const minFee = parseInt(await getSetting('platform_min_fee', '20'), 10) || 20;
-  const maxFeeRaw = await getSetting('platform_max_fee', '');
-  let fee = Math.max(Math.round((rentalPrice * percent) / 100), minFee);
-  if (maxFeeRaw && fee > parseInt(maxFeeRaw, 10)) fee = parseInt(maxFeeRaw, 10);
-  return fee;
+  const fee = Math.round((Math.max(0, Number(rentalPrice) || 0) * percent) / 100);
+  return Math.max(0, fee);
 }
 
 // Historical snapshot rate used at the moment a booking is created, so later
 // changes to the commission setting never rewrite the history of a past booking.
 async function getPlatformRate() {
   const percent = parseFloat((await getSetting('platform_percent', '8'))) || 8;
-  const minFee = parseInt(await getSetting('platform_min_fee', '20'), 10) || 20;
-  return { percent, minFee };
+  return { percent, minFee: 0 };
 }
 
 // Free-plan monthly active-listing cap (premium = unlimited).
