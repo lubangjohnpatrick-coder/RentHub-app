@@ -1,0 +1,21 @@
+/* Temporary QA hotfix layer. Loaded last. */
+.grh-hero-showcase{
+  background:
+    radial-gradient(circle at 72% 32%, rgba(255,190,0,.22), transparent 20%),
+    linear-gradient(135deg,#fff7dd 0%,#ffe6a2 48%,#e7b13d 100%) !important;
+}
+.grh-hero-showcase::before{
+  background:linear-gradient(90deg,rgba(255,255,255,.55),rgba(255,255,255,.08) 45%,rgba(255,255,255,0)) !important;
+}
+.grh-hero-item,.grh-hero-mark,.grh-honeycomb{display:flex !important}
+.grh-hero-mark{display:block !important}
+.grh-honeycomb{display:block !important}
+.grh-item-camera{left:28px !important;bottom:30px !important}
+.grh-item-tech{left:36px !important;top:34px !important}
+.grh-item-tool{right:36px !important;top:36px !important}
+.grh-item-camping{left:52% !important;top:55% !important}
+@media(max-width:700px){
+  .grh-hero-item{display:none !important}
+  .grh-hero-mark{display:block !important;width:145px !important;height:155px !important;right:18px !important;bottom:10px !important}
+  .grh-honeycomb{display:block !important}
+}
