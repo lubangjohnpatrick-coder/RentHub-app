@@ -40,11 +40,14 @@ jobs:
           test -f supabase/migrations/2026-09-04-launch-hardening.sql
           test -f supabase/migrations/2026-09-04-location-hardening.sql
           test -f supabase/migrations/2026-09-04-private-media.sql
+          test -f supabase/migrations/2026-09-04-deployment-readiness.sql
+          grep -q "client_request_id" supabase/migrations/2026-09-04-deployment-readiness.sql
           grep -q "GATEWAY.*paymongo" render.yaml
           grep -q "GoRentHive commission is deducted from owner earnings" server/booking-v2.js
           grep -q "PAYMONGO_WEBHOOK_SECRET" server/paymongo-webhook.js
           grep -q "private://" server/upload.js
           grep -q "source !== 'gps'" server/location.js
+          ! grep -q "featured,avg_rating" server/location.js
           grep -q "does not operate a delivery service" public/index.html
           grep -q "₱499" public/js/launch-ready.js
           grep -q "₱999" public/js/launch-ready.js
