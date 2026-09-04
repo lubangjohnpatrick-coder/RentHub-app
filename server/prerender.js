@@ -1,146 +1,130 @@
 'use strict';
 
-// Server-side HTML prerendering for the public SEO pages.
-//
-// The app is a hash/history SPA. With JavaScript enabled it renders everything.
-// With JavaScript disabled (search-engine crawlers, the reviewer's SEO test)
-// the server returns a meaningful <title>, meta description, canonical/OG tags
-// and a <noscript> block with an <h1> and real content for each public route.
-//
-// This is intentionally lightweight: a curated map of the public marketing
-// pages. Dynamic routes (listings, profiles) are left to the SPA; a shared
-// default shell is used for everything else.
-
+// Lightweight server-side metadata/prerender content for public marketing pages.
 const SITE = 'GoRentHive';
 const CANON = 'https://gorenthive.online';
 
 const ROUTES = {
   '/': {
     title: 'GoRentHive | Rent What You Need. Earn From What You Own.',
-    desc: 'A peer-to-peer rental marketplace in the Philippines. Rent tools, vehicles, party equipment, cameras and more from people near you — or turn your unused items into income.',
+    desc: 'Philippine peer-to-peer rental marketplace. Find verified nearby rentals by radius or earn from useful items you already own.',
     h1: 'Rent What You Need. Earn From What You Own.',
-    intro: 'Rent anything from people near you, or earn from the things you already own.',
+    intro: 'Find useful items from verified people near you using radius-based search, or list items you own to earn rental income.',
   },
   '/explore': {
-    title: 'Explore Rentals in the Philippines | GoRentHive',
-    desc: 'Rent cameras, tents, speakers, cars, tools and more from local owners in the Philippines.',
+    title: 'Explore Rentals Near You | GoRentHive Philippines',
+    desc: 'Search nearby tools, event equipment, cameras, vehicles and more using your verified GPS location and preferred radius.',
     h1: 'Explore rentals near you',
-    intro: 'Browse cameras, tents, speakers, vehicles, tools and more from local owners. Rent with secure escrow payments and refundable deposits.',
+    intro: 'Use verified-radius search to browse nearby rentals without exposing exact private location coordinates.',
   },
   '/categories': {
     title: 'Browse Rental Categories | GoRentHive',
-    desc: 'Browse rental categories — cameras, tents, speakers, tools, vehicles and more in the Philippines.',
+    desc: 'Browse construction equipment, party needs, cameras, electronics, fashion, adventure gear, home equipment and more.',
     h1: 'Browse by category',
-    intro: 'From cameras and camping gear to party equipment, tools, vehicles and formal wear — find the category you need.',
+    intro: 'Find useful rentals across equipment, events, photography, electronics, special occasions, outdoor activities and home needs.',
   },
   '/rent': {
     title: 'Rent Items Near You | GoRentHive',
-    desc: 'Find gear, tools, vehicles and more for rent from local owners in the Philippines on GoRentHive.',
+    desc: 'Search by verified radius, request dates, accept a digital rental agreement, document handover and return the item on time.',
     h1: 'How renting works',
-    intro: 'Search, book, pay securely and pick up — rent almost anything from a trusted local owner.',
+    intro: 'Search nearby, request a booking, sign the agreement, document condition, pick up or meet the owner, then return and review.',
   },
   '/earn': {
     title: 'Earn Money Renting Your Items | GoRentHive',
-    desc: 'Turn unused tools, equipment, vehicles and other items into extra income on GoRentHive.',
+    desc: 'Turn unused tools, equipment, vehicles and other useful items into rental income on GoRentHive.',
     h1: 'Earn from the things you already own',
-    intro: 'List an item, set your price, and get paid when it rents. GoRentHive handles payments, deposits and agreements.',
+    intro: 'List an item, set your price and availability, and keep your rental earnings less GoRentHive’s 8% owner commission.',
   },
   '/pricing': {
     title: 'Pricing & Fees | GoRentHive',
-    desc: 'Simple, honest pricing for peer-to-peer rentals in the Philippines.',
-    h1: 'Simple, honest pricing',
-    intro: 'Renters pay the daily rate plus a small platform fee and a refundable deposit. Owners keep the rental amount minus the platform fee.',
+    desc: 'Basic is free, Pro is ₱499/month and Business is ₱999/month. GoRentHive deducts an 8% commission from completed owner rental earnings.',
+    h1: 'Simple, transparent pricing',
+    intro: 'Start free, upgrade when useful, and pay an 8% marketplace commission from completed owner rental earnings. Security deposits are separate.',
   },
   '/how-it-works': {
-    title: 'How GoRentHive Works | GoRentHive',
-    desc: 'Rent & earn in the Philippines: find an item, request a rental, pay securely, and return it.',
+    title: 'How GoRentHive Works | Philippines Rental Marketplace',
+    desc: 'Search by verified radius, request a rental, sign the booking-specific agreement, document handover and return, then complete payment release.',
     h1: 'How GoRentHive works',
-    intro: 'Find an item, request a rental, pay securely in escrow, and return it. Both for renters and owners.',
+    intro: 'A documented workflow from nearby search and owner approval through agreement, condition evidence, handover, return and completion.',
   },
   '/trust-safety': {
     title: 'Trust & Safety | GoRentHive',
-    desc: 'GoRentHive is designed for safer peer-to-peer rentals — verified users and secure transactions.',
+    desc: 'Verified accounts, GPS radius search, protected payments, digital rental agreements, condition evidence and dispute controls.',
     h1: 'Trust & safety',
-    intro: 'Verified users, secure escrow payments, refundable deposits, digital rental agreements and a dispute resolution process.',
+    intro: 'GoRentHive combines verification, protected payment flow, booking-specific agreements and before/after condition records.',
   },
   '/about': {
-    title: 'About GoRentHive | GoRentHive',
-    desc: 'The peer-to-peer rental marketplace for the things you already own in the Philippines.',
+    title: 'About GoRentHive | Philippine Peer-to-Peer Rentals',
+    desc: 'GoRentHive is a Philippine peer-to-peer marketplace for renting useful items and earning from assets you already own.',
     h1: 'About GoRentHive',
-    intro: 'A peer-to-peer rental marketplace for the things you already own.',
+    intro: 'A local rental marketplace designed to make idle assets useful and documented peer-to-peer rentals easier to manage.',
   },
   '/help': {
     title: 'Help Center | GoRentHive',
-    desc: 'Get help with renting, earning, payments and more on GoRentHive.',
+    desc: 'Get help with renting, listing, verification, protected payments, security deposits, returns and disputes.',
     h1: 'Help Center',
-    intro: 'Answers to common questions about renting, earning, payments, deposits and disputes.',
+    intro: 'Answers to common questions about renting, earning, verification, payments, deposits, return evidence and disputes.',
   },
   '/contact': {
     title: 'Contact Us | GoRentHive',
-    desc: 'Contact the GoRentHive support team.',
+    desc: 'Contact the GoRentHive support team for marketplace and booking assistance.',
     h1: 'Contact us',
-    intro: 'Our support team is ready to help you.',
+    intro: 'Contact GoRentHive support for account, booking or marketplace assistance.',
   },
   '/list': {
-    title: 'List an Item | GoRentHive',
-    desc: 'List your item on GoRentHive and start earning from the things you no longer use.',
+    title: 'List an Item | Earn on GoRentHive',
+    desc: 'List an item on GoRentHive, set your price and availability, and earn when verified renters book it.',
     h1: 'List your item and start earning',
-    intro: 'Upload photos and a description, set your price, and GoRentHive handles the rest.',
+    intro: 'Add clear photos and item details, set your rental price and availability, then manage requests in GoRentHive.',
   },
   '/login': {
     title: 'Log In | GoRentHive',
-    desc: 'Log in to your GoRentHive account to rent and earn in the Philippines.',
+    desc: 'Log in to your GoRentHive account to rent, list items and manage bookings.',
     h1: 'Log in',
     intro: '',
   },
   '/register': {
     title: 'Create Account | GoRentHive',
-    desc: 'Create a free GoRentHive account to rent and earn in the Philippines.',
+    desc: 'Create one GoRentHive account that can both rent items and list items for rent.',
     h1: 'Create your free account',
-    intro: '',
+    intro: 'One account can both rent and list items.',
   },
   '/owner': {
-    title: 'For Owners | GoRentHive',
-    desc: 'Turn your unused items into income. List on GoRentHive and earn from the things you already own.',
+    title: 'For Owners | Earn With GoRentHive',
+    desc: 'Turn unused items into income. Set your own rental prices and availability on GoRentHive.',
     h1: 'Earn from the things you own',
-    intro: 'List your items, set your own prices, and get paid when they rent.',
+    intro: 'List your items, set your own prices and availability, and keep your rental earnings less the 8% owner commission.',
   },
   '/legal/terms': {
     title: 'Terms & Conditions | GoRentHive',
-    desc: 'The GoRentHive Terms & Conditions for renting and listing.',
+    desc: 'GoRentHive Terms & Conditions governing accounts, listings, rentals, payments and disputes.',
     h1: 'Terms & Conditions',
-    intro: 'The rules that govern renting, listing and payments on GoRentHive.',
+    intro: 'The rules that govern accounts, listings, rentals, protected payments and dispute handling on GoRentHive.',
   },
   '/legal/privacy': {
     title: 'Privacy Policy | GoRentHive',
-    desc: 'How GoRentHive collects and protects your data.',
+    desc: 'How GoRentHive collects, uses and protects account, location, identity and booking data.',
     h1: 'Privacy Policy',
-    intro: 'How GoRentHive collects, uses and protects personal data.',
+    intro: 'How GoRentHive collects, uses, stores and protects personal and marketplace data.',
   },
   '/legal/rental_agreement': {
     title: 'Rental Agreement | GoRentHive',
-    desc: 'The GoRentHive rental agreement between renters and owners.',
+    desc: 'GoRentHive standard rental-agreement framework covering parties, item, dates, deposit, condition evidence, late return and disputes.',
     h1: 'Rental Agreement',
-    intro: 'The agreement that governs each rental between a renter and an owner.',
+    intro: 'Each approved booking generates its own agreement snapshot covering the parties, item, rental period, deposit, return and applicable policies.',
   },
   '/legal/prohibited': {
     title: 'Prohibited Items | GoRentHive',
-    desc: 'Items that cannot be rented on GoRentHive.',
+    desc: 'Items and categories that cannot be listed or rented through GoRentHive.',
     h1: 'Prohibited items',
-    intro: 'A list of items that are not allowed to be rented through GoRentHive.',
+    intro: 'Review the categories and items that are not allowed on GoRentHive.',
   },
 };
 
 function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Returns a { title, desc, noscript } object for the given URL path, or null if
-// the route is not in the curated public map (default shell is used).
 function routeFor(pathname) {
   const key = ROUTES[pathname] ? pathname : null;
   if (!key) return null;
