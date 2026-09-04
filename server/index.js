@@ -5,6 +5,7 @@ const express = require('express');
 const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const prerender = require('./prerender');
 
 const app = express();
@@ -19,10 +20,40 @@ app.use((req, res, next) => {
   next();
 });
 
-// The SPA still contains legacy inline event handlers, so a strict CSP would
-// currently break the UI. Helmet's other production headers remain enabled;
-// CSP should be tightened after the inline handlers are migrated.
-app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use((req, res, next) => {
+  const requestId = String(req.get('x-request-id') || '').slice(0, 100) || crypto.randomUUID();
+  req.requestId = requestId;
+  res.setHeader('X-Request-ID', requestId);
+  next();
+});
+
+// The legacy SPA still contains inline event handlers. We therefore keep
+// 'unsafe-inline' temporarily, but enforce a constrained CSP rather than
+// disabling CSP entirely. Tighten further as inline handlers are migrated.
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      formAction: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'],
+      frameSrc: ["'self'", 'https://checkout.paymongo.com'],
+      upgradeInsecureRequests: [],
+    },
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(self), microphone=()');
+  next();
+});
 
 const { handleWebhook } = require('./paymongo-webhook');
 app.post('/api/paymongo/webhook', express.raw({ type: 'application/json', limit: '1mb' }), handleWebhook);
@@ -34,7 +65,8 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-app.get('/healthz', (req, res) => res.json({ ok: true, name: 'GoRentHive', launchReady: true }));
+app.get('/healthz', (req, res) => res.json({ ok: true, name: 'GoRentHive', status: 'alive' }));
+app.use(require('./readiness'));
 
 // Order matters. Hardened compatibility routes MUST run before older routes.
 app.use('/api', require('./no-delivery'));
@@ -60,6 +92,8 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     } else if (/\.(css|js|json|webmanifest)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    } else if (/\.(png|jpg|jpeg|webp|ico)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
     }
   },
 }));
@@ -87,14 +121,14 @@ app.get('*', (req, res) => {
     .replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${ogImage}">`)
     .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}">`)
     .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${r.desc}">`)
-    .replace(/(<main class="page" id="app">)/, `$1\n${r.noscript}`);
+    .replace(/(<main class="page" id="app"[^>]*>)/, `$1\n${r.noscript}`);
   res.send(out);
 });
 
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error(`[${req.requestId || 'no-request-id'}]`, err);
   if (res.headersSent) return next(err);
-  res.status(err.status || 500).json({ error: err.message || 'Server error' });
+  res.status(err.status || 500).json({ error: err.message || 'Server error', request_id: req.requestId });
 });
 
 app.listen(PORT, () => console.log('GoRentHive running on http://localhost:' + PORT));
