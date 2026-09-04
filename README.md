@@ -129,22 +129,24 @@ The production asset ownership is intentionally small:
 public/
 ├─ index.html
 ├─ css/
-│  ├─ styles.css          # legacy/base component structure
-│  ├─ launch-ready.css    # launch-specific functional surfaces
-│  └─ app-theme.css       # single production visual/theme owner
+│  ├─ styles.css             # legacy/base component structure
+│  ├─ launch-ready.css       # launch-specific functional surfaces
+│  └─ app-theme.css          # single production visual/theme owner
 ├─ js/
-│  ├─ api.js              # API client/helpers
-│  ├─ app.js              # core SPA router/views
-│  ├─ location-hardening.js
-│  ├─ launch-ready.js
-│  ├─ private-media.js
-│  ├─ terms-fix.js
-│  └─ ui-shell.js         # nav/footer/homepage presentation owner
+│  ├─ api.js                 # API client/helpers
+│  ├─ app.js                 # legacy core SPA router/views
+│  ├─ location-hardening.js  # verified GPS behavior
+│  ├─ launch-ready.js        # hardened launch workflows
+│  ├─ private-media.js       # signed/private evidence media
+│  ├─ legal-acceptance.js    # compatibility boundary for Terms/legal acceptance
+│  └─ ui-shell.js            # nav/footer/homepage presentation owner
 ├─ service-worker.js
 └─ manifest.webmanifest
 ```
 
-Do not add new visual override files just to patch one page. Prefer extending `app-theme.css` or the component owner. New security/payment/business logic belongs in a dedicated module, not in `ui-shell.js`.
+`app.js` is still a large legacy core. New presentation behavior should **not** be added there by default. New work should follow component ownership instead of creating more override files.
+
+Do not add new visual patch files for one page. Extend `app-theme.css` or the responsible component. Security, payment, verification, or legal state belongs in a dedicated module, never in `ui-shell.js`.
 
 ## Server architecture
 
