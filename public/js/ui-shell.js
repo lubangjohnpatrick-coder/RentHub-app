@@ -17,7 +17,7 @@
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+    .replace(/\"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
   const ICONS = {
@@ -140,7 +140,13 @@
           </div>
 
           <div class="grh-hero-showcase" aria-label="Popular rental categories">
-            <div class="grh-showcase-brand"><img src="${MARK}" alt="" width="62" height="62"><div><span>One marketplace.</span><strong>Thousands of useful things.</strong></div></div>
+            <div class="grh-showcase-brand">
+              <img src="${MARK}" alt="GoRentHive" width="62" height="62">
+              <div>
+                <span>Local rentals, made simple.</span>
+                <strong>Useful things. Trusted people. Nearby.</strong>
+              </div>
+            </div>
             <div class="grh-showcase-grid">
               <a href="/explore?q=camera" class="grh-showcase-tile">${icon('camera')}<span>Camera & video</span></a>
               <a href="/explore?q=tools" class="grh-showcase-tile">${icon('tools')}<span>Tools & equipment</span></a>
