@@ -18,10 +18,9 @@
 .empty .em{display:grid!important;place-items:center;width:64px;height:64px;margin:0 auto 14px!important;border-radius:18px;background:#fff4c7;font-size:30px!important;box-shadow:0 8px 22px rgba(11,31,58,.08)}
 .empty h3{margin:0 0 8px;font-size:20px}
 .empty p{max-width:560px;margin:0 auto 16px!important;line-height:1.65}
-.grh-empty-location{padding:24px!important;text-align:center!important}
-.grh-empty-location-icon{display:grid;width:54px;height:54px;place-items:center;margin:0 auto 10px;border-radius:50%;background:#fff4c7;font-size:24px}
-.grh-empty-location strong{display:block;color:var(--grh-navy);font-size:16px;margin-bottom:5px}
-.grh-empty-location p{max-width:470px;margin:0 auto 14px!important;font-size:12px!important}
+.grh-empty-location{padding:28px 22px!important;text-align:center!important;line-height:1.6!important}
+.grh-empty-location:before{content:"⌖";display:grid;width:56px;height:56px;place-items:center;margin:0 auto 12px;border-radius:18px;background:linear-gradient(145deg,#fff2bd,#fff8df);color:var(--grh-navy);font-size:27px;font-weight:800;box-shadow:0 8px 22px rgba(11,31,58,.08)}
+.grh-empty-location:after{content:"Use “Add location” above to verify your GPS and place a private pin for accurate nearby results.";display:block;max-width:470px;margin:8px auto 0;color:var(--grh-muted);font-size:12px;line-height:1.55}
 
 /* Subtle depth and feedback; animation is disabled for reduced-motion users. */
 .grh-trust-row>div,.grh-category-card,.grh-owner-strip,.grh-profile-photo-card,.grh-location-card{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
@@ -70,8 +69,7 @@
   .grh-preview-body{padding:13px!important}
   .grh-search-wrap{margin-top:14px!important}
   .grh-search-panel{border-radius:18px!important}
-  .grh-location-form-head{gap:10px!important}
-  .grh-location-form-head{flex-direction:column!important;align-items:stretch!important}
+  .grh-location-form-head{gap:10px!important;flex-direction:column!important;align-items:stretch!important}
   #grh-use-current-location{width:100%!important}
   .grh-location-map{min-height:300px!important;height:300px!important}
   .grh-map-shell{border-radius:18px!important;overflow:hidden!important}
