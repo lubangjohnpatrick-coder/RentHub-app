@@ -24,6 +24,10 @@ const Root = {
     }
   },
   promptTerms() {
+    // Guard: if terms were already accepted (e.g. by a concurrent tab), don't
+    // show the modal at all. This prevents the Terms popup from appearing on
+    // every page load after acceptance, which was blocking the listing form.
+    if (this.state.termsAccepted) return;
     this.modal(`GoRentHive Terms Update
       <p style="font-size:13px;color:var(--ink-soft);margin-top:4px">Our Terms &amp; Conditions have been updated. You must accept them to keep renting and listing on GoRentHive.</p>
       <button class="btn btn-primary btn-block" onclick="Root.acceptTerms()">I accept the Terms &amp; Conditions</button>`, 'close');
@@ -1858,15 +1862,18 @@ const Root = {
   async acceptTerms() {
     this.closeModal();
     try {
-      // Persist acceptance. Re-read /auth/me to confirm the server now reports
-      // termsAccepted BEFORE doing anything, then update state in-place WITHOUT
-      // a full location.reload() — a reload here races the Supabase write, so
-      // on reload /auth/me would still return termsAccepted:false and the
-      // Terms Update modal would immediately pop back up (reviewer bug).
       await API.post('/auth/terms/accept');
-      const d = await API.get('/auth/me');
-      this.state.termsAccepted = !!d.termsAccepted;
-      if (!this.state.termsAccepted) throw new Error('acceptance not yet saved');
+      // Supabase replication can be slightly eventual: re-read /auth/me up to
+      // 3 times with a short settle delay so the UI confirms acceptance before
+      // rendering, instead of the old location.reload() which raced the write.
+      let confirmed = false;
+      for (let i = 0; i < 3 && !confirmed; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 500));
+        const d = await API.get('/auth/me');
+        this.state.termsAccepted = !!d.termsAccepted;
+        confirmed = this.state.termsAccepted;
+      }
+      if (!confirmed) throw new Error('Acceptance not yet saved — please try again');
       this.renderNav();
       this.toast('Terms accepted', 'success');
     } catch (e) {
