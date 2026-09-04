@@ -59,6 +59,9 @@ const { handleWebhook } = require('./paymongo-webhook');
 app.post('/api/paymongo/webhook', express.raw({ type: 'application/json', limit: '1mb' }), handleWebhook);
 app.use(express.json({ limit: '2mb' }));
 
+const { apiRateLimit, authRateLimit } = require('./request-guard');
+app.use('/api/auth', authRateLimit);
+app.use('/api', apiRateLimit);
 app.use('/api', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Pragma', 'no-cache');
