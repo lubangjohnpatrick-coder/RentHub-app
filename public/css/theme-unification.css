@@ -1,0 +1,146 @@
+/* GoRentHive unified visual system — loaded last to align all public/app screens */
+:root{
+  --grh-navy:#0B1F3A;
+  --grh-navy-2:#143B67;
+  --grh-gold:#FFB800;
+  --grh-gold-2:#FFD43B;
+  --grh-gold-soft:#FFF4C7;
+  --grh-cream:#FFF9EE;
+  --grh-bg:#F7F9FC;
+  --grh-surface:#FFFFFF;
+  --grh-text:#0E2037;
+  --grh-muted:#66758A;
+  --grh-line:#E5EAF1;
+  --grh-success:#16825D;
+  --grh-danger:#C83E4D;
+  --grh-warning:#A86E00;
+  --grh-r-sm:12px;
+  --grh-r-md:18px;
+  --grh-r-lg:26px;
+  --grh-shadow-sm:0 8px 24px rgba(11,31,58,.06);
+  --grh-shadow:0 16px 42px rgba(11,31,58,.10);
+  --grh-shadow-lg:0 24px 64px rgba(11,31,58,.14);
+}
+html{background:var(--grh-bg)}
+body{background:var(--grh-bg)!important;color:var(--grh-text)!important;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
+main.page{min-height:65vh;background:var(--grh-bg)}
+.wrap{width:min(1180px,calc(100% - 32px));margin-inline:auto}
+
+/* Navigation */
+.topnav{background:#fff!important;border-bottom:1px solid var(--grh-line)!important;box-shadow:0 6px 24px rgba(11,31,58,.05)!important;backdrop-filter:none!important}
+.topnav .nav-inner,.topnav-inner{min-height:76px!important}
+.nav-links a,.nav-menu a{color:var(--grh-navy)!important;font-weight:650!important;border-radius:10px}
+.nav-links a:hover,.nav-menu a:hover{color:#C78200!important;background:#FFF9E9!important}
+.brand-refresh-logo,.grh-wordmark{background:transparent!important}
+
+/* Typography */
+h1,h2,h3,h4,h5,h6{color:var(--grh-navy);letter-spacing:-.02em}
+h1{font-weight:800} h2{font-weight:800} h3{font-weight:750}
+p,.muted,.sub,.section-sub,.help-text,.form-help{color:var(--grh-muted)}
+a{color:#1769C2}
+
+/* Universal buttons */
+.btn,button,.button{border-radius:13px;transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease}
+.btn-primary,.button-primary,.search-btn,.grh-search-button{background:linear-gradient(135deg,var(--grh-gold-2),var(--grh-gold))!important;color:var(--grh-navy)!important;border-color:transparent!important;font-weight:800!important;box-shadow:0 8px 20px rgba(255,184,0,.20)!important}
+.btn-primary:hover,.button-primary:hover,.search-btn:hover,.grh-search-button:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(255,184,0,.28)!important}
+.btn-dark{background:var(--grh-navy)!important;border-color:var(--grh-navy)!important;color:#fff!important}
+.btn-outline,.btn-outline-light,.button-outline{background:#fff!important;color:var(--grh-navy)!important;border:1px solid #CFD8E4!important;box-shadow:none!important}
+.btn-outline:hover,.btn-outline-light:hover,.button-outline:hover{border-color:#AEBBCB!important;background:#FBFCFE!important}
+.btn-danger{background:#FFF1F2!important;color:var(--grh-danger)!important;border:1px solid #F6C8CF!important}
+
+/* Forms */
+input,select,textarea,.input,.form-control{border:1px solid #D8E0EA!important;border-radius:13px!important;background:#fff!important;color:var(--grh-text)!important;box-shadow:none!important}
+input:focus,select:focus,textarea:focus,.input:focus,.form-control:focus{outline:none!important;border-color:var(--grh-gold)!important;box-shadow:0 0 0 4px rgba(255,184,0,.13)!important}
+label,.label{color:var(--grh-navy)!important;font-weight:700!important}
+fieldset{border-color:var(--grh-line)!important;border-radius:var(--grh-r-md)!important}
+
+/* Cards and panels */
+.card,.detail-card,.form-card,.booking-box,.listing-card,.price-card,.pricing-card,.trust-card,.dashboard-card,.panel,.legal-box,.profile-card,.wallet-card,.stat-card,.notification-card,.message-card{background:#fff!important;border:1px solid var(--grh-line)!important;border-radius:var(--grh-r-md)!important;box-shadow:var(--grh-shadow-sm)!important}
+.listing-card,.price-card,.dashboard-card,.stat-card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.listing-card:hover,.price-card:hover,.dashboard-card:hover,.stat-card:hover{transform:translateY(-2px);border-color:#F1D173!important;box-shadow:var(--grh-shadow)!important}
+
+/* Page/section heads */
+.landing-hero,.page-hero,.account-hero{background:linear-gradient(135deg,#fff 0%,#FFF9EC 60%,#FFF2CC 100%)!important;border-bottom:1px solid #F1E0AB!important;color:var(--grh-text)!important}
+.landing-hero h1,.page-hero h1{color:var(--grh-navy)!important}
+.landing-hero h1 span,.page-hero h1 span{color:#E79A00!important}
+.hero-eyebrow,.eyebrow,.pill-kicker{background:var(--grh-gold-soft)!important;color:#7A5200!important;border:1px solid #F4D77C!important;border-radius:999px!important}
+.section{padding-top:54px!important}
+.section-head{margin-bottom:22px!important}
+.section-head h2{color:var(--grh-navy)!important}
+
+/* Homepage consistency */
+.grh-home-hero,.launch-hero{background:linear-gradient(128deg,#fff 0%,#FFF9ED 55%,#FFF1C9 100%)!important}
+.grh-search-panel,.launch-search-card{background:#fff!important;border:1px solid var(--grh-line)!important;box-shadow:var(--grh-shadow-lg)!important}
+.grh-owner-strip{background:linear-gradient(110deg,#FFF9ED,#FFF2CF)!important;border-color:#F1D88B!important}
+.grh-closing-banner,.ownbanner.launch-owner-banner{background:linear-gradient(135deg,var(--grh-navy),#16436F)!important}
+.grh-category-card,.cat-card{border-color:var(--grh-line)!important;background:#fff!important;border-radius:16px!important}
+
+/* Pricing */
+.launch-pricing-grid,.pricing-grid{gap:20px!important}
+.price-card.featured,.pricing-card.featured{border:2px solid var(--grh-gold)!important;box-shadow:0 18px 48px rgba(255,184,0,.16)!important}
+.price-badge,.popular-badge{background:var(--grh-gold)!important;color:var(--grh-navy)!important;border-radius:999px!important}
+.price-card .price,.pricing-card .price{color:var(--grh-navy)!important}
+.launch-fee-box{background:#FFF9E8!important;border:1px solid #F4DC93!important;border-radius:var(--grh-r-md)!important}
+
+/* Trust / help / legal */
+.launch-safety-grid article,.help-card,.faq-item,.legal-section{background:#fff!important;border:1px solid var(--grh-line)!important;border-radius:var(--grh-r-md)!important;box-shadow:var(--grh-shadow-sm)!important}
+.launch-notice,.notice,.info-box{background:#FFF9E5!important;border:1px solid #F2D47A!important;color:#6B4A00!important;border-radius:14px!important}
+.alert-success,.success-box{background:#ECF8F2!important;border-color:#BDE6D3!important;color:#126346!important}
+.alert-error,.error-box{background:#FFF2F3!important;border-color:#F1C7CD!important;color:#A42E3B!important}
+.legal-table>div{border-color:var(--grh-line)!important}
+.legal-table>div:first-child{background:#F8FAFD!important;color:var(--grh-navy)!important}
+
+/* Dashboard/account surfaces */
+.dashboard,.account-page,.profile-page,.bookings-page,.messages-page,.wallet-page,.admin-page{background:var(--grh-bg)!important}
+.sidebar,.dashboard-sidebar,.account-sidebar{background:#fff!important;border:1px solid var(--grh-line)!important;border-radius:var(--grh-r-md)!important;box-shadow:var(--grh-shadow-sm)!important}
+.sidebar a,.dashboard-sidebar a,.account-sidebar a{color:var(--grh-navy)!important;border-radius:10px!important}
+.sidebar a.active,.dashboard-sidebar a.active,.account-sidebar a.active{background:#FFF4C7!important;color:#7A5200!important;font-weight:750!important}
+.stat-card .value,.wallet-balance,.dashboard-number{color:var(--grh-navy)!important}
+
+/* Tables */
+table{background:#fff;border-radius:14px;overflow:hidden;border-collapse:separate!important;border-spacing:0!important;border:1px solid var(--grh-line)!important}
+th{background:#F6F8FB!important;color:var(--grh-navy)!important;font-weight:750!important;border-color:var(--grh-line)!important}
+td{border-color:var(--grh-line)!important;color:var(--grh-text)!important}
+tr:hover td{background:#FCFDFE}
+
+/* Status chips */
+.badge,.chip,.status-chip{border-radius:999px!important;font-weight:750!important}
+.badge-success,.status-completed,.status-approved,.verified-chip{background:#E9F8F1!important;color:#14714F!important}
+.badge-warning,.status-pending,.status-late{background:#FFF5D6!important;color:#875A00!important}
+.badge-danger,.status-disputed,.status-cancelled{background:#FFF0F2!important;color:#B03242!important}
+.badge-info,.status-active{background:#EAF2FF!important;color:#245FA7!important}
+
+/* Modals */
+.modal-backdrop{background:rgba(7,22,42,.56)!important;backdrop-filter:blur(4px)}
+.modal,.modal-card,.dialog{background:#fff!important;border:1px solid rgba(255,255,255,.65)!important;border-radius:22px!important;box-shadow:0 30px 80px rgba(0,0,0,.22)!important}
+.modal h2,.modal h3,.modal-card h2,.modal-card h3{color:var(--grh-navy)!important}
+
+/* Images */
+.thumb,.gallery,.listing-photo,.avatar,.media-preview{overflow:hidden}
+.thumb img,.gallery img,.listing-photo img{border-radius:14px!important}
+
+/* Footer */
+.footer{background:linear-gradient(145deg,#07182D,#0D294A)!important;border-top:0!important}
+.footer h4{color:#fff!important}.footer p,.footer .tagline{color:#C9D3DF!important}.footer a{color:#D7DFE8!important}.footer a:hover{color:var(--grh-gold-2)!important}
+.footer .brand-refresh-logo{background:transparent!important}
+
+/* Mobile nav */
+.bottom-nav{background:#fff!important;border-top:1px solid var(--grh-line)!important;box-shadow:0 -8px 28px rgba(11,31,58,.08)!important}
+.bottom-nav a{color:#718096!important}.bottom-nav a.active{color:#A86E00!important}.bottom-nav a.active::before{background:var(--grh-gold)!important}
+
+/* Focus + accessibility */
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(255,184,0,.45)!important;outline-offset:2px}
+
+@media(max-width:900px){
+  .wrap{width:min(100% - 24px,1180px)}
+  .topnav .nav-inner,.topnav-inner{min-height:68px!important}
+  .section{padding-top:42px!important}
+  .card,.detail-card,.form-card,.booking-box,.listing-card,.price-card,.pricing-card,.trust-card,.dashboard-card,.panel{border-radius:16px!important}
+}
+@media(max-width:600px){
+  .wrap{width:min(100% - 20px,1180px)}
+  .section{padding-top:34px!important}
+  h1{letter-spacing:-.035em}
+  .modal,.modal-card,.dialog{border-radius:18px!important}
+  .btn{min-height:44px}
+}
