@@ -48,6 +48,24 @@ async function authorizeEvidence(req, bookingId) {
   return !!(data && (data.renter_id === req.user.id || data.owner_id === req.user.id || req.user.role === 'admin'));
 }
 
+async function ensureProfileBucket() {
+  const client = svcClient();
+  const { data, error } = await client.storage.getBucket('profile-photos');
+  if (data && !error) return;
+
+  const missing = error && /bucket not found|not found/i.test(String(error.message || ''));
+  if (!missing && error) throw new Error('Unable to check profile photo storage: ' + error.message);
+
+  const { error: createError } = await client.storage.createBucket('profile-photos', {
+    public: true,
+    fileSizeLimit: 5 * 1024 * 1024,
+    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+  });
+  if (createError && !/already exists/i.test(String(createError.message || ''))) {
+    throw new Error('Profile photo storage is not configured. Apply the latest Supabase migration or create the profile-photos bucket.');
+  }
+}
+
 router.post('/', requireAuth, upload.array('files', 12), async (req, res) => {
   try {
     if (!req.files || !req.files.length) return res.status(400).json({ error: 'No files provided' });
@@ -62,6 +80,7 @@ router.post('/', requireAuth, upload.array('files', 12), async (req, res) => {
     if (scope === 'profile') {
       if (req.files.length !== 1) return res.status(400).json({ error: 'Upload exactly one profile photo.' });
       if (req.files[0].mimetype === 'image/gif') return res.status(400).json({ error: 'Animated GIFs are not supported for profile photos.' });
+      await ensureProfileBucket();
       bucket = 'profile-photos';
       prefix = `users/${req.user.id}`;
       fixedProfilePath = true;
