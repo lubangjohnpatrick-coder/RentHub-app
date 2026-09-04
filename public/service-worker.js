@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v8-profile-location';
+const CACHE = 'gorenthive-v9-production-hardening';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -7,6 +7,7 @@ const APP_SHELL = [
   '/css/launch-ready.css',
   '/css/app-theme.css',
   '/css/profile-experience.css',
+  '/css/experience.css',
   '/js/vendor/supabase.js',
   '/js/supabase-config.js',
   '/js/api.js',
