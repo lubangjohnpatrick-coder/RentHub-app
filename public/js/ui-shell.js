@@ -1,7 +1,14 @@
 /*
  * GoRentHive UI shell
- * Owns presentation-only overrides for navigation, footer and homepage.
- * Payment, booking, location, media and legal state remain in their dedicated modules.
+ *
+ * Presentation owner for navigation branding and the public homepage.
+ * Business rules remain in app.js and the hardened payment/location/media/legal modules.
+ *
+ * Design rules:
+ * - no inline event handlers
+ * - no init monkey-patching
+ * - no footer DOM rewrites
+ * - no business logic in the presentation layer
  */
 (() => {
   'use strict';
@@ -9,27 +16,34 @@
   if (!window.Root) return;
 
   const originalRenderNav = Root.renderNav ? Root.renderNav.bind(Root) : null;
-  const originalInit = Root.init ? Root.init.bind(Root) : null;
+  const WORDMARK = '/brand/gorenthive-wordmark.png';
+  const MARK = '/brand/gorenthive-mark.png';
 
-  const LOGO = '<img src="/brand/gorenthive-wordmark.png" class="brand-refresh-logo grh-wordmark" width="188" height="54" alt="GoRentHive — Rent What You Need. Earn From What You Own.">';
+  const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 
-  function enhanceBrand(root = document) {
-    root.querySelectorAll('.brand').forEach((brand) => {
-      brand.classList.add('brand-refresh', 'grh-brand');
-      brand.innerHTML = LOGO;
-      brand.setAttribute('aria-label', 'GoRentHive home');
-    });
+  function brandMarkup() {
+    return `<img src="${WORDMARK}" class="brand-refresh-logo grh-wordmark" width="188" height="54" alt="GoRentHive — Rent What You Need. Earn From What You Own.">`;
   }
 
   function enhanceNavigation() {
     const top = document.getElementById('topnav');
     if (!top) return;
 
-    enhanceBrand(top);
+    const brand = top.querySelector('.brand');
+    if (brand) {
+      brand.classList.add('brand-refresh', 'grh-brand');
+      brand.innerHTML = brandMarkup();
+      brand.setAttribute('aria-label', 'GoRentHive home');
+    }
 
     const nav = top.querySelector('.nav-link-pad');
     if (nav && !nav.querySelector('.brand-nav-how')) {
-      const ownerLink = [...nav.querySelectorAll('a')].find((a) => /for owners/i.test(a.textContent || ''));
+      const ownerLink = [...nav.querySelectorAll('a')].find((link) => /for owners/i.test(link.textContent || ''));
       if (ownerLink) {
         const how = document.createElement('a');
         how.className = 'brand-nav-how';
@@ -39,33 +53,32 @@
       }
     }
 
-    const signup = [...top.querySelectorAll('a')].find((a) => /sign up|create account/i.test(a.textContent || ''));
+    const signup = [...top.querySelectorAll('a')].find((link) => /sign up|create account/i.test(link.textContent || ''));
     if (signup) {
       signup.textContent = 'Create Account';
       signup.classList.add('brand-cta');
     }
   }
 
-  function enhanceFooter() {
-    const footer = document.querySelector('.footer');
-    if (!footer) return;
-    enhanceBrand(footer);
+  function bindHomepageSearch(root) {
+    const queryInput = root.querySelector('#launch-q');
+    const searchButton = root.querySelector('#launch-search-button');
+
+    const submit = () => {
+      if (typeof Root.launchSearch === 'function') Root.launchSearch();
+    };
+
+    queryInput?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submit();
+      }
+    });
+
+    searchButton?.addEventListener('click', submit);
   }
 
-  Root.renderNav = function renderNav() {
-    if (originalRenderNav) originalRenderNav();
-    enhanceNavigation();
-  };
-
-  Root.viewHome = async function viewHome() {
-    const cats = (this.state.categories || []).slice(0, 9);
-
-    this.setMeta(
-      'GoRentHive | Rent What You Need. Earn From What You Own.',
-      'Find verified nearby rentals by radius in the Philippines, or earn from items you already own. Protected payments, agreements and condition documentation.',
-      '/'
-    );
-
+  function renderCategoryCards(categories) {
     const fallbackCategories = [
       ['📷', 'Cameras & Gear', 'camera'],
       ['⛺', 'Outdoor & Camping', 'camping'],
@@ -78,17 +91,34 @@
       ['🎮', 'Games & Hobbies', 'gaming'],
     ];
 
-    const categoryCards = cats.length
-      ? cats.map((category) => `
-          <a class="grh-category-card" href="/explore?category=${encodeURIComponent(String(category.id))}">
-            <span class="grh-category-icon" aria-hidden="true">${category.icon || '📦'}</span>
-            <span>${esc(category.name)}</span>
-          </a>`).join('')
-      : fallbackCategories.map(([icon, name, query]) => `
-          <a class="grh-category-card" href="/explore?q=${encodeURIComponent(query)}">
-            <span class="grh-category-icon" aria-hidden="true">${icon}</span>
-            <span>${name}</span>
-          </a>`).join('');
+    if (categories.length) {
+      return categories.map((category) => `
+        <a class="grh-category-card" href="/explore?category=${encodeURIComponent(String(category.id))}">
+          <span class="grh-category-icon" aria-hidden="true">${escapeHtml(category.icon || '📦')}</span>
+          <span>${escapeHtml(category.name)}</span>
+        </a>`).join('');
+    }
+
+    return fallbackCategories.map(([icon, name, query]) => `
+      <a class="grh-category-card" href="/explore?q=${encodeURIComponent(query)}">
+        <span class="grh-category-icon" aria-hidden="true">${icon}</span>
+        <span>${name}</span>
+      </a>`).join('');
+  }
+
+  Root.renderNav = function renderNav() {
+    if (originalRenderNav) originalRenderNav();
+    enhanceNavigation();
+  };
+
+  Root.viewHome = async function viewHome() {
+    const categories = (this.state.categories || []).slice(0, 9);
+
+    this.setMeta(
+      'GoRentHive | Rent What You Need. Earn From What You Own.',
+      'Find verified nearby rentals by radius in the Philippines, or earn from items you already own. Protected payments, agreements and condition documentation.',
+      '/'
+    );
 
     this.$app.innerHTML = `
       <section class="grh-home-hero" aria-labelledby="grh-home-title">
@@ -113,7 +143,7 @@
             <div class="grh-hero-item grh-item-tool">🛠️<small>Tools</small></div>
             <div class="grh-hero-item grh-item-camping">⛺<small>Camping</small></div>
             <div class="grh-hero-item grh-item-tech">💻<small>Tech</small></div>
-            <img class="grh-hero-mark" src="/brand/gorenthive-mark.png" alt="" width="145" height="160">
+            <img class="grh-hero-mark" src="${MARK}" alt="" width="145" height="160">
             <div class="grh-adventure-note">Your Next Adventure<br><b>Starts Here.</b></div>
           </div>
         </div>
@@ -122,20 +152,20 @@
           <div class="grh-search-panel" role="search" aria-label="Search GoRentHive rentals">
             <div class="grh-search-field">
               <span class="grh-search-ico" aria-hidden="true">⌖</span>
-              <div><label>Location</label><strong>Uses your verified GPS location</strong></div>
+              <div><span class="grh-field-label">Location</span><strong>Uses your verified GPS location</strong></div>
             </div>
             <div class="grh-search-field">
               <span class="grh-search-ico" aria-hidden="true">▦</span>
               <div>
                 <label for="launch-q">What do you need?</label>
-                <input id="launch-q" autocomplete="off" aria-label="What do you need to rent?" placeholder="Camera, tent, drill, projector…" onkeydown="if(event.key==='Enter')Root.launchSearch()">
+                <input id="launch-q" autocomplete="off" placeholder="Camera, tent, drill, projector…">
               </div>
             </div>
             <div class="grh-search-field">
               <span class="grh-search-ico" aria-hidden="true">◎</span>
               <div>
                 <label for="launch-radius">Search radius</label>
-                <select id="launch-radius" aria-label="Search radius">
+                <select id="launch-radius">
                   <option value="5">Within 5 km</option>
                   <option value="10" selected>Within 10 km</option>
                   <option value="25">Within 25 km</option>
@@ -143,7 +173,7 @@
                 </select>
               </div>
             </div>
-            <button type="button" class="grh-search-button" onclick="Root.launchSearch()"><span aria-hidden="true">⌕</span> <span>Search Rentals</span></button>
+            <button id="launch-search-button" type="button" class="grh-search-button"><span aria-hidden="true">⌕</span> <span>Search Rentals</span></button>
           </div>
         </div>
       </section>
@@ -166,29 +196,16 @@
               <h2 id="grh-categories-title">Popular Categories</h2>
               <a href="/categories">View All Categories →</a>
             </div>
-            <div class="grh-category-grid">${categoryCards}</div>
+            <div class="grh-category-grid">${renderCategoryCards(categories)}</div>
           </section>
 
           <section class="grh-closing-banner" aria-label="GoRentHive marketplace message">
             <div><h2>A smarter way to <span>rent.</span><br>A brighter way to <span>earn.</span></h2></div>
-            <img src="/brand/gorenthive-mark.png" alt="GoRentHive" width="120" height="120">
+            <img src="${MARK}" alt="GoRentHive" width="120" height="120">
           </section>
         </div>
       </div>`;
+
+    bindHomepageSearch(this.$app);
   };
-
-  if (originalInit) {
-    Root.init = async function init() {
-      await originalInit();
-      this.renderNav();
-      enhanceFooter();
-    };
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    queueMicrotask(() => {
-      enhanceNavigation();
-      enhanceFooter();
-    });
-  });
 })();
