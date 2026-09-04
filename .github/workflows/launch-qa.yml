@@ -74,7 +74,7 @@ jobs:
           grep -q "grh-search-panel" public/css/ux-polish.css
           grep -q "/css/ux-polish.css" public/index.html
           grep -q "Confirm pin & save" public/js/profile-experience.js
-          grep -q "MAX_PIN_ADJUSTMENT_M = 200" server/profile-location.js
+          grep -q "MAX_PIN_ADJUST_M = 200" server/profile-location.js
 
       - name: Validate production route precedence
         run: |
