@@ -89,10 +89,9 @@ router.post('/bookings/quote', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Direct PayMongo booking funding. The payment funds exactly the renter-side
-// obligation (rental + deposit). It does not charge the owner's 8% commission.
 router.post('/bookings/paymongo', requireAuth, async (req, res) => {
   try {
+    if (!PaymongoProvider.configured()) return res.status(503).json({ error: 'Online payments are not configured. Booking payment is unavailable.', code: 'payment_provider_required' });
     const draft = req.body && req.body.booking_draft ? req.body.booking_draft : req.body;
     const q = await quoteFor(req.user, draft || {});
     if (q.error) return res.status(q.status || 400).json({ error: q.error, code: q.code });
@@ -114,6 +113,7 @@ router.post('/bookings/paymongo', requireAuth, async (req, res) => {
       description: 'GoRentHive booking payment ' + pay.payment_ref,
       metadata: { payment_ref: pay.payment_ref, user_id: String(req.user.id) },
     });
+    if (intent.sandbox && String(process.env.NODE_ENV || '').toLowerCase() === 'production') throw new Error('Sandbox payment intent refused in production');
     const meta = {
       ...parseJson(pay.meta),
       paymongo_intent_id: intent.id,
@@ -121,15 +121,7 @@ router.post('/bookings/paymongo', requireAuth, async (req, res) => {
       return_url: returnUrl('booking'),
     };
     await svcClient().from('payments').update({ meta: JSON.stringify(meta), updated_at: now() }).eq('id', pay.id);
-    res.json({
-      ok: true,
-      sandbox: !!intent.sandbox,
-      payment_id: pay.id,
-      client_key: intent.client_key,
-      intent_id: intent.id,
-      amount: Math.round(q.total),
-      return_url: meta.return_url,
-    });
+    res.json({ ok: true, sandbox: !!intent.sandbox, payment_id: pay.id, client_key: intent.client_key, intent_id: intent.id, amount: Math.round(q.total), return_url: meta.return_url });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -137,32 +129,29 @@ router.post('/bookings', requireAuth, async (req, res) => {
   let rentalDebited = false;
   let depositDebited = false;
   let insertedId = null;
+  let rollbackRental = 0;
+  let rollbackDeposit = 0;
   try {
     const draft = req.body || {};
     const q = await quoteFor(req.user, draft);
     if (q.error) return res.status(q.status || 400).json({ error: q.error, code: q.code });
+    rollbackRental = q.rental_fee;
+    rollbackDeposit = q.security_deposit;
     const l = q.listing;
 
     const needLevel = Number(l.min_verification_level || 2);
     const userLevel = Number(req.user.identity_level || 1);
     if (userLevel < needLevel) {
-      return res.status(428).json({
-        error: 'This listing requires a higher verification level. Complete account verification first.',
-        code: 'verify_required', required: needLevel, current: userLevel,
-      });
+      return res.status(428).json({ error: 'This listing requires a higher verification level. Complete account verification first.', code: 'verify_required', required: needLevel, current: userLevel });
     }
 
     const keyRaw = req.headers['idempotency-key'] || draft.idempotency_key || ['bk', req.user.id, l.id, q.start, q.end].join('|');
     const clientRequestId = String(keyRaw).slice(0, 120);
-    const { data: existing } = await svcClient().from('bookings')
-      .select('*').eq('renter_id', req.user.id).eq('client_request_id', clientRequestId).limit(1).maybeSingle();
+    const { data: existing } = await svcClient().from('bookings').select('*').eq('renter_id', req.user.id).eq('client_request_id', clientRequestId).limit(1).maybeSingle();
     if (existing) return res.json({ ok: true, booking: existing, idempotent: true });
 
     const balance = await ledger.getUserBalance(req.user.id);
-    if (balance < q.total) return res.status(402).json({
-      error: 'Insufficient wallet balance. Please fund the booking first.',
-      code: 'insufficient_funds', required: q.total, balance,
-    });
+    if (balance < q.total) return res.status(402).json({ error: 'Insufficient wallet balance. Please fund the booking first.', code: 'insufficient_funds', required: q.total, balance });
 
     const { data: overlap } = await svcClient().from('bookings').select('id')
       .eq('listing_id', l.id).in('status', ['pending','approved','active','returned','disputed'])
@@ -203,9 +192,7 @@ router.post('/bookings', requireAuth, async (req, res) => {
     const ins = await svcClient().from('bookings').insert(row).select().single();
     if (ins.error) {
       const raw = String(ins.error.message || '').toLowerCase();
-      if (/exclusion|overlap|unique|already exists|23p01|23505/.test(raw)) {
-        return res.status(409).json({ error: 'This item was just booked by someone else. Please choose different dates.' });
-      }
+      if (/exclusion|overlap|unique|already exists|23p01|23505/.test(raw)) return res.status(409).json({ error: 'This item was just booked by someone else. Please choose different dates.' });
       throw new Error(ins.error.message);
     }
     insertedId = ins.data.id;
@@ -215,44 +202,25 @@ router.post('/bookings', requireAuth, async (req, res) => {
     if (q.security_deposit > 0) {
       await ledger.addEntry({ bookingId: insertedId, userId: req.user.id, type: 'deposit_escrow', amount: -q.security_deposit, meta: { booking_ref: bookingRef } });
       depositDebited = true;
-      await svcClient().from('security_deposits').insert({
-        booking_id: insertedId,
-        renter_id: req.user.id,
-        owner_id: l.owner_id,
-        amount: q.security_deposit,
-        status: 'held',
-        created_at: now(),
-      });
+      await svcClient().from('security_deposits').insert({ booking_id: insertedId, renter_id: req.user.id, owner_id: l.owner_id, amount: q.security_deposit, status: 'held', created_at: now() });
     }
 
     const pointName = (draft.meeting_point && draft.meeting_point.name) || draft.meeting_point_name || '';
     const pointAddress = (draft.meeting_point && draft.meeting_point.address) || draft.meeting_point_address || '';
     if (pointName) {
-      await svcClient().from('meeting_points').insert({
-        booking_id: insertedId,
-        point_name: String(pointName).slice(0, 200),
-        point_address: String(pointAddress).slice(0, 500),
-        latitude: null,
-        longitude: null,
-        proposed_by: req.user.id,
-        created_at: now(), updated_at: now(),
-      });
+      await svcClient().from('meeting_points').insert({ booking_id: insertedId, point_name: String(pointName).slice(0, 200), point_address: String(pointAddress).slice(0, 500), latitude: null, longitude: null, proposed_by: req.user.id, created_at: now(), updated_at: now() });
     }
 
     res.json({ ok: true, booking: ins.data });
   } catch (e) {
-    // Best-effort compensation if a ledger/storage step fails after booking insert.
     try {
       if (insertedId) {
-        if (depositDebited) await ledger.addEntry({ bookingId: insertedId, userId: req.user.id, type: 'refund', amount: Math.max(0, Number(req.body.security_deposit) || 0), meta: { reason: 'booking_create_rollback' } });
-        if (rentalDebited) {
-          const b = await svcClient().from('bookings').select('rental_fee').eq('id', insertedId).maybeSingle();
-          if (b.data && b.data.rental_fee > 0) await ledger.addEntry({ bookingId: insertedId, userId: req.user.id, type: 'refund', amount: b.data.rental_fee, meta: { reason: 'booking_create_rollback' } });
-        }
+        if (depositDebited && rollbackDeposit > 0) await ledger.addEntry({ bookingId: insertedId, userId: req.user.id, type: 'refund', amount: rollbackDeposit, meta: { reason: 'booking_create_rollback_deposit' } });
+        if (rentalDebited && rollbackRental > 0) await ledger.addEntry({ bookingId: insertedId, userId: req.user.id, type: 'refund', amount: rollbackRental, meta: { reason: 'booking_create_rollback_rental' } });
         await svcClient().from('security_deposits').delete().eq('booking_id', insertedId);
         await svcClient().from('bookings').delete().eq('id', insertedId);
       }
-    } catch (_) { /* original error remains authoritative */ }
+    } catch (_) {}
     res.status(500).json({ error: e.message || 'Could not create booking' });
   }
 });
