@@ -1,12 +1,5 @@
 'use strict';
 
-// GoRentHive slim server.
-// - Serves the static PWA (public/) — deploys locally or to any Node host.
-// - Mounts the FINANCIAL API (server/financial.js) which is the only place
-//   money moves, using the Supabase service-role key.
-// All non-financial data is read/written by the browser directly against
-// Supabase REST with the anon key (guarded by row-level security).
-
 require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
@@ -16,50 +9,37 @@ const prerender = require('./prerender');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-
-// Single canonical host: redirect www.gorenthive.online -> gorenthive.online so
-// every page, canonical/OG URL and the sitemap resolve to ONE origin (SEO).
 const SITE_HOST = process.env.CANON_HOST || 'gorenthive.online';
+
 app.use((req, res, next) => {
   const host = (req.get('host') || '').toLowerCase();
-  if (host === 'www.' + SITE_HOST || host === 'www.' + SITE_HOST + ':443') {
-    return res.redirect(301, 'https://' + SITE_HOST + req.originalUrl);
-  }
+  if (host === 'www.' + SITE_HOST || host === 'www.' + SITE_HOST + ':443') return res.redirect(301, 'https://' + SITE_HOST + req.originalUrl);
   next();
 });
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
-// PayMongo webhook must see the RAW body for signature verification, so it is
-// registered before the global JSON parser.
+// PayMongo needs the unmodified bytes. The handler itself fails closed when
+// PAYMONGO_WEBHOOK_SECRET is absent or the signature is invalid.
 const { handleWebhook } = require('./paymongo-webhook');
 app.post('/api/paymongo/webhook', express.raw({ type: 'application/json' }), handleWebhook);
-
 app.use(express.json({ limit: '2mb' }));
 
-// root health
 app.get('/healthz', (req, res) => res.json({ ok: true, name: 'GoRentHive' }));
 
-// Financial + private routes (require Supabase JWT; use service role)
 app.use('/api', require('./financial'));
 app.use('/api', require('./private'));
-// Multipart photo upload -> Supabase Storage
+app.use('/api', require('./launch-hardening'));
 app.use('/api/upload', require('./upload'));
 
-// Static PWA
 const setUtf8 = (res) => {
   const ct = res.getHeader('Content-Type') || '';
   if (ct && !/charset/i.test(ct)) res.setHeader('Content-Type', ct + '; charset=utf-8');
 };
 app.use(express.static(path.join(__dirname, '..', 'public'), { setHeaders: (res, filePath) => {
-  // Force a UTF-8 charset on HTML/CSS/JS/SVG/JSON so crawlers and proxies never
-  // guess a different encoding and mangle emoji/─/₱/© (reviewer #23).
   if (/\.(html|css|js|json|svg)$/i.test(filePath)) setUtf8(res);
 }}));
 
-// SPA fallback with server-side prerendering for public SEO routes (reviewer
-// #3/#4/#22): known public pages get a meaningful <title>, meta description,
-// canonical/OG tags and real <h1> content visible even with JS disabled.
 app.get('*', (req, res) => {
   const p = (req.path || '/').split('?')[0].replace(/\/+$/, '') || '/';
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -82,10 +62,6 @@ app.get('*', (req, res) => {
   res.send(out);
 });
 
-// Guarantee a UTF-8 charset on every HTML response so bots/proxies that honor
-// the header never misinterpret emoji/─/₱/© as Latin-1 (reviewer #23). Covers
-// the SPA fallback's sendFile path too, which Express otherwise serves without
-// a charset.
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api/') && res.getHeader('Content-Type') == null) res.type('html');
   next();
@@ -97,6 +73,4 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Server error' });
 });
 
-app.listen(PORT, () => {
-  console.log('GoRentHive (Supabase) running on http://localhost:' + PORT);
-});
+app.listen(PORT, () => console.log('GoRentHive (Supabase) running on http://localhost:' + PORT));
