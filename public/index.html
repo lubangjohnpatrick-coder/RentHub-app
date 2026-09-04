@@ -1,28 +1,44 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en-PH">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GoRentHive | Rent What You Need. Earn From What You Own.</title>
-  <meta name="description" content="GoRentHive is a peer-to-peer rental marketplace. Rent cameras, tents, speakers, cars, tools and more from people near you. Turn your unused things into income.">
-  <meta name="theme-color" content="#F5A623">
+  <meta name="description" content="GoRentHive is a Philippine peer-to-peer rental marketplace. Find verified nearby rentals by radius or earn from tools, equipment, cameras, event gear and other useful items you own.">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="theme-color" content="#E8920C">
+  <meta name="color-scheme" content="light">
   <link rel="canonical" href="https://gorenthive.online/">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GoRentHive">
+  <meta property="og:locale" content="en_PH">
   <meta property="og:url" content="https://gorenthive.online/">
   <meta property="og:title" content="GoRentHive | Rent What You Need. Earn From What You Own.">
-  <meta property="og:description" content="GoRentHive is a peer-to-peer rental marketplace. Rent cameras, tents, speakers, cars, tools and more from people near you. Turn your unused things into income.">
+  <meta property="og:description" content="Find verified nearby rentals by radius in the Philippines—or earn from useful items you already own.">
   <meta property="og:image" content="https://gorenthive.online/icons/icon-512.png">
+  <meta property="og:image:alt" content="GoRentHive peer-to-peer rental marketplace">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="GoRentHive | Rent What You Need. Earn From What You Own.">
-  <meta name="twitter:description" content="GoRentHive is a peer-to-peer rental marketplace. Rent cameras, tents, speakers, cars, tools and more from people near you. Turn your unused things into income.">
+  <meta name="twitter:description" content="Find verified nearby rentals by radius in the Philippines—or earn from useful items you already own.">
   <meta name="twitter:image" content="https://gorenthive.online/icons/icon-512.png">
   <meta name="apple-mobile-web-app-title" content="GoRentHive">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/launch-ready.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "GoRentHive",
+    "url": "https://gorenthive.online/",
+    "description": "Philippine peer-to-peer rental marketplace for finding nearby rentals and earning from useful items you own."
+  }
+  </script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -31,22 +47,27 @@
       {
         "@type": "Question",
         "name": "What is GoRentHive?",
-        "acceptedAnswer": { "@type": "Answer", "text": "GoRentHive is a peer-to-peer rental marketplace in the Philippines. Rent cameras, tents, speakers, cars, tools and more from people near you — or list your own items to earn extra income." }
+        "acceptedAnswer": { "@type": "Answer", "text": "GoRentHive is a peer-to-peer rental marketplace in the Philippines. Users can rent useful items from nearby owners or list items they own to earn rental income." }
       },
       {
         "@type": "Question",
-        "name": "How much does it cost to rent?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Each owner sets the rental rate. GoRentHive deducts an 8% commission from the owner's rental earnings. A refundable security deposit may also be required. GoRentHive does not operate a delivery service." }
+        "name": "How are GoRentHive fees calculated?",
+        "acceptedAnswer": { "@type": "Answer", "text": "GoRentHive deducts an 8% commission from the owner's completed rental earnings. The renter's refundable security deposit is separate and is not GoRentHive revenue." }
       },
       {
         "@type": "Question",
-        "name": "How do I earn from my things?",
-        "acceptedAnswer": { "@type": "Answer", "text": "List an item you own, set a rental price, and use GoRentHive for bookings, protected payments, agreements and rental documentation. Owners receive the rental amount minus the 8% commission." }
+        "name": "How does nearby search work?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Radius search uses a recent verified device GPS location. Manual coordinates are not treated as a verified location, and exact listing coordinates are not exposed in nearby search results." }
       },
       {
         "@type": "Question",
-        "name": "Is GoRentHive safe?",
-        "acceptedAnswer": { "@type": "Answer", "text": "GoRentHive is designed for safer peer-to-peer rentals with verified users, protected payments, refundable deposits, digital rental agreements, condition documentation and dispute resolution." }
+        "name": "Does GoRentHive provide delivery?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. GoRentHive does not operate a delivery service. Owners and renters arrange pickup or a mutually agreed meetup themselves." }
+      },
+      {
+        "@type": "Question",
+        "name": "How are rentals documented?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Approved bookings generate a booking-specific digital rental agreement. The owner documents the item before handover and the renter documents it again on return for dispute evidence." }
       }
     ]
   }
@@ -54,15 +75,15 @@
 </head>
 <body>
   <header class="topnav" id="topnav"></header>
-  <div class="toast-wrap" id="toastWrap"></div>
-  <main class="page" id="app"></main>
-  <nav class="bottom-nav" id="bottomnav"></nav>
+  <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+  <main class="page" id="app" tabindex="-1"></main>
+  <nav class="bottom-nav" id="bottomnav" aria-label="Primary mobile navigation"></nav>
   <footer class="footer">
     <div class="wrap">
       <div class="footer-grid">
         <div>
           <div class="brand logo"><span class="logo">🐝</span><span><b>Go</b>RentHive</span></div>
-          <p class="tagline">Need it? Rent it. Own it? Earn from it. The peer-to-peer rental marketplace for the things you already own.</p>
+          <p class="tagline">Rent what you need. Earn from what you own. A peer-to-peer rental marketplace built for local, documented transactions.</p>
         </div>
         <div>
           <h4>Marketplace</h4>
@@ -70,7 +91,6 @@
             <li><a href="/explore">Explore</a></li>
             <li><a href="/categories">Categories</a></li>
             <li><a href="/list">List an Item</a></li>
-            <li><a href="/requests">Rent Requests</a></li>
             <li><a href="/rent">Rent</a></li>
             <li><a href="/earn">Earn</a></li>
             <li><a href="/pricing">Pricing</a></li>
@@ -87,7 +107,7 @@
           </ul>
         </div>
         <div>
-          <h4>GoRentHive</h4>
+          <h4>Legal</h4>
           <ul>
             <li><a href="/legal/terms">Terms & Conditions</a></li>
             <li><a href="/legal/privacy">Privacy Policy</a></li>
@@ -104,13 +124,14 @@
           </ul>
         </div>
       </div>
-      <p style="font-size:11.5px;opacity:.7;margin-top:24px">© 2026 GoRentHive. All rights reserved. GoRentHive facilitates peer-to-peer rentals and does not own listed inventory or operate a delivery service.</p>
+      <p style="font-size:11.5px;opacity:.72;margin-top:24px">© 2026 GoRentHive. All rights reserved. GoRentHive facilitates peer-to-peer rentals, does not own listed inventory, and does not operate a delivery service.</p>
     </div>
   </footer>
-<script src="/js/vendor/supabase.js"></script>
-<script src="/js/supabase-config.js"></script>
-<script src="/js/api.js"></script>
-<script src="/js/app.js"></script>
-<script src="/js/location-hardening.js"></script>
+  <script src="/js/vendor/supabase.js"></script>
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/location-hardening.js"></script>
+  <script src="/js/launch-ready.js"></script>
 </body>
 </html>
