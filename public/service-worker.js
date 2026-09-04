@@ -1,10 +1,11 @@
-/* GoRentHive service worker - deployment-safe PWA */
-const CACHE = 'gorenthive-v5-launch-ready';
+/* GoRentHive service worker — network-first app code, cache-first static media. */
+const CACHE = 'gorenthive-v7-clean-ui';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/css/styles.css',
   '/css/launch-ready.css',
+  '/css/app-theme.css',
   '/js/vendor/supabase.js',
   '/js/supabase-config.js',
   '/js/api.js',
@@ -12,53 +13,85 @@ const APP_SHELL = [
   '/js/location-hardening.js',
   '/js/launch-ready.js',
   '/js/private-media.js',
+  '/js/legal-acceptance.js',
+  '/js/ui-shell.js',
+  '/brand/gorenthive-mark.png',
+  '/brand/gorenthive-wordmark.png',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon-512.png',
 ];
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((cache) => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
 });
 
-self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
 });
 
 function isAppCode(pathname) {
   return pathname === '/' || pathname === '/index.html' || /\.(js|css|html|webmanifest)$/.test(pathname);
 }
 
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) return;
-
-  if (isAppCode(url.pathname)) {
-    e.respondWith(fetch(e.request).then((res) => {
-      if (res && res.ok) caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
-      return res;
-    }).catch(() => caches.match(e.request).then((cached) => cached || caches.match('/index.html'))));
-    return;
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      const cache = await caches.open(CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (_) {
+    return (await caches.match(request)) || (await caches.match('/index.html'));
   }
+}
 
-  e.respondWith(caches.match(e.request).then((cached) => cached || fetch(e.request).then((res) => {
-    if (res && res.ok) caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
-    return res;
-  })));
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response && response.ok) {
+    const cache = await caches.open(CACHE);
+    cache.put(request, response.clone());
+  }
+  return response;
+}
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) return;
+  event.respondWith(isAppCode(url.pathname) ? networkFirst(event.request) : cacheFirst(event.request));
 });
 
-self.addEventListener('push', (e) => {
-  const data = e.data ? e.data.json() : {};
-  e.waitUntil(self.registration.showNotification(data.title || 'GoRentHive', {
-    body: data.body || 'New update', icon: '/icons/icon-192.png', data: { url: data.url || '/' },
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {};
+  event.waitUntil(self.registration.showNotification(data.title || 'GoRentHive', {
+    body: data.body || 'New update',
+    icon: '/icons/icon-192.png',
+    data: { url: data.url || '/' },
   }));
 });
 
-self.addEventListener('notificationclick', (e) => {
-  e.notification.close();
-  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cls) => {
-    for (const c of cls) { if ('focus' in c) { c.focus(); c.navigate(e.notification.data.url || '/'); return; } }
-    clients.openWindow(e.notification.data.url || '/');
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+    for (const client of windows) {
+      if ('focus' in client) {
+        client.focus();
+        client.navigate(event.notification.data.url || '/');
+        return;
+      }
+    }
+    return clients.openWindow(event.notification.data.url || '/');
   }));
 });

@@ -1,181 +1,202 @@
 # GoRentHive 🐝
 
-> **Need it? Rent it. Own it? Earn from it.**
+**Rent What You Need. Earn From What You Own.**
 
-GoRentHive is a **peer-to-peer rental marketplace** where people rent items from each other. Owners list the things they already own; renters search, book, pay, and return them. GoRentHive facilitates discovery, verification, booking, payment, rental agreements, security deposits, communication, reviews, disputes, and platform fees.
+GoRentHive is a Philippine peer-to-peer rental marketplace. One account can both rent items and list items for rent. The platform provides discovery, verified-radius search, booking workflow, protected payment state, digital rental agreements, condition evidence, security-deposit accounting, reviews, disputes, and an 8% owner-side marketplace commission.
 
-It is built as a **mobile-first Progressive Web App (PWA)**, so it runs in any browser and can be **installed to a phone** to work like an app — and is architected for later packaging into **Android/iOS** apps (e.g. with Capacitor).
+## Production principles
 
----
+- **One user account:** renters can become owners and owners can rent.
+- **8% marketplace commission:** deducted from completed owner rental earnings.
+- **Security deposits are separate:** deposits are not GoRentHive revenue.
+- **No GoRentHive delivery service:** owners and renters arrange pickup or meetup themselves.
+- **Verified-radius discovery:** nearby search is based on recent verified GPS coordinates and server-side distance calculation.
+- **Private evidence:** identity and rental-condition media use private storage and short-lived signed access.
+- **Booking-specific agreements:** approved bookings keep a snapshot of the applicable agreement and late-fee rules.
+- **Provider-authoritative payments:** the internal ledger records platform state; the payment provider remains the source of truth for actual money movement.
 
-## Quick Start
+## Stack
+
+- Node.js 22+
+- Express 4
+- Supabase
+- Vanilla JavaScript SPA
+- Progressive Web App / service worker
+- Capacitor 6 tooling for Android packaging
+- PayMongo integration foundation; alternative providers can be added behind a provider boundary
+
+## Local setup
 
 ```bash
-# 1. Install dependencies
-npm install
-
-# 2. Start with an empty pilot database (created automatically)android\app\build\outputs\apk\debug\app-debug.apk
+npm ci
+npm run qa
 npm start
 ```
 
-Then open **http://localhost:4000** (or use the port in `.env`).
+The server listens on `PORT` (default `4000`).
 
-> The app uses Node's **built-in `node:sqlite`** (Node 22+), so no native compilation is needed — node:sqlite must be available (Node 24 works out of the box).
+Do not commit production credentials. Configure secrets through local environment variables and the deployment platform.
 
-## Supabase Pilot API
+## Required environment variables
 
-The hosted Supabase REST endpoint is configured through `.env`:
+The exact set depends on enabled capabilities, but production normally includes:
+
+```text
+NODE_ENV=production
+PUBLIC_BASE_URL=https://gorenthive.online
+CANON_HOST=gorenthive.online
+
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+
+GATEWAY=paymongo
+PAYMONGO_PUBLIC_KEY=...
+PAYMONGO_SECRET_KEY=...
+PAYMONGO_WEBHOOK_SECRET=...
+```
+
+Additional email/SMS verification variables are required when those providers are enabled.
+
+**Never expose `SUPABASE_SERVICE_ROLE_KEY`, `PAYMONGO_SECRET_KEY`, or webhook secrets in browser JavaScript, GitHub, screenshots, or client-side configuration.**
+
+## Database migrations
+
+Apply production migrations through Supabase before deploying server code that depends on them:
+
+```text
+supabase/migrations/2026-09-04-launch-hardening.sql
+supabase/migrations/2026-09-04-location-hardening.sql
+supabase/migrations/2026-09-04-private-media.sql
+supabase/migrations/2026-09-04-deployment-readiness.sql
+```
+
+Do not rerun the original schema file against an existing production database unless you have explicitly reviewed the consequences.
+
+## Transaction lifecycle
+
+```text
+Renter request
+  → owner approval
+  → payment confirmation
+  → both parties sign booking-specific agreement
+  → pre-rental condition evidence + counterparty confirmation
+  → handover / active rental
+  → return evidence
+  → owner acceptance or dispute
+  → deposit resolution
+  → owner payout eligibility
+  → review
+```
+
+Agreement signing does not by itself activate a rental. Handover requirements are enforced separately.
+
+## Payment model
+
+For a rental amount of `R`:
+
+```text
+GoRentHive commission = R × 8%
+Owner rental proceeds = R − commission
+Security deposit      = separate refundable amount
+```
+
+The 8% commission applies to the rental amount, not to the refundable security deposit. GoRentHive does not charge a platform-operated delivery fee.
+
+Payment gateway callbacks must be verified server-side. PayMongo webhook handling fails closed when the webhook secret is missing or the signature is invalid.
+
+## Location model
+
+Nearby discovery uses:
+
+```text
+recent device GPS
+  → accuracy/freshness validation
+  → verified location record
+  → server-side radius calculation
+  → nearby listings
+```
+
+Manual map pins or typed coordinates are not treated as GPS-verified locations. Exact private listing coordinates should not be exposed in public nearby-search responses.
+
+Browser geolocation cannot be made impossible to spoof. Native mobile builds can later add stronger device-attestation and mock-location controls.
+
+## Frontend architecture
+
+The production asset ownership is intentionally small:
+
+```text
+public/
+├─ index.html
+├─ css/
+│  ├─ styles.css             # legacy/base component structure
+│  ├─ launch-ready.css       # launch-specific functional surfaces
+│  └─ app-theme.css          # single production visual/theme owner
+├─ js/
+│  ├─ api.js                 # API client/helpers
+│  ├─ app.js                 # legacy core SPA router/views
+│  ├─ location-hardening.js  # verified GPS behavior
+│  ├─ launch-ready.js        # hardened launch workflows
+│  ├─ private-media.js       # signed/private evidence media
+│  ├─ legal-acceptance.js    # compatibility boundary for Terms/legal acceptance
+│  └─ ui-shell.js            # nav/footer/homepage presentation owner
+├─ service-worker.js
+└─ manifest.webmanifest
+```
+
+`app.js` is still a large legacy core. New presentation behavior should **not** be added there by default. New work should follow component ownership instead of creating more override files.
+
+Do not add new visual patch files for one page. Extend `app-theme.css` or the responsible component. Security, payment, verification, or legal state belongs in a dedicated module, never in `ui-shell.js`.
+
+## Server architecture
+
+High-risk behavior is server-authoritative. Important modules include:
+
+```text
+server/
+├─ index.js
+├─ booking-v2.js
+├─ launch-hardening.js
+├─ location.js
+├─ rental-policy.js
+├─ paymongo-webhook.js
+├─ financial.js
+├─ private.js
+├─ upload.js
+├─ verification-v2.js
+├─ ledger.js
+└─ settings.js
+```
+
+Hardened routers are intentionally mounted before legacy/general routes where route overlap exists.
+
+## Quality gates
 
 ```bash
-SUPABASE_REST_URL=https://tdztzjetxnjqwvgolpvz.supabase.co/rest/v1
-SUPABASE_ANON_KEY=your-project-anon-key
+npm run qa:syntax   # Node syntax validation for server and browser JS
+npm run qa:assets   # local asset references, retired-file checks, shell integrity
+npm run qa          # both checks
+npm audit --omit=dev --audit-level=high
 ```
 
-The SQL starter schema is in [supabase/schema.sql](supabase/schema.sql). The current pilot UI still uses the local Express `/api` routes and SQLite for its full marketplace workflow; migrating every route to Supabase requires the project anon key and a deliberate data/auth migration. Never put a Supabase service-role key in GitHub or the Android app.
+GitHub Actions runs the launch QA workflow for pull requests to `main` and pushes to `main`. The workflow also validates migration presence, payment/location hardening assertions, server route precedence, and production dependency security.
 
----
+## PWA caching
 
-## Pilot Accounts
+Application code uses a **network-first** strategy so new deployments are not hidden by stale PWA caches. Static media can use cache-first behavior. When changing the app shell, update both `index.html` and `service-worker.js` and bump the cache version.
 
-| Role | Email | Password |
-|------|-------|----------|
-| **Admin** | `admin@gorenthive.online` | `admin123` |
-| **Owner** (Juan, Toyota Vios) | `juan@gorenthive.online` | `owner123` |
-| **Owner** (Maria, gown/PS5) | `maria@gorenthive.online` | `owner123` |
-| **Owner** (Pedro, generator) | `pedro@gorenthive.online` | `owner123` |
-| **Owner** (Carlos, cameras) | `cam@gorenthive.online` | `owner123` |
-| **Owner** (Ana, tents) | `tent@gorenthive.online` | `owner123` |
-| **Owner** (Berto, speakers) | `bee@gorenthive.online` | `owner123` |
-| **Renter** (Mia) | `mia@gorenthive.online` | `renter123` |
-| **Renter** (Leo) | `leo@gorenthive.online` | `renter123` |
+## Deployment checklist
 
-There are no demo accounts or sample listings. Register a real pilot account from the app, then complete email, phone, identity, and Terms & Conditions requirements before listing.
+Before accepting real transactions:
 
----
+1. Apply all required Supabase migrations.
+2. Verify Render/environment secrets are present and production-safe.
+3. Confirm the payment provider account and webhook are approved/configured.
+4. Run a complete two-account booking lifecycle in a production-like environment.
+5. Test return, late-return, refund/deposit, and dispute paths.
+6. Test responsive layouts on real Android/iPhone devices and desktop.
+7. Have Philippine legal counsel review Terms, Privacy, Rental Agreement, deposit, damage, late-fee, and dispute language.
 
-## What's Inside
+## Business/legal note
 
-### Marketplace (Renter side)
-- Homepage hero **"RENT ANYTHING."** with search, location, and date selectors
-- Category browser with subcategories and "Other/Anything Legal"
-- Search with filters: keyword, category, city, price, sort, featured, bundles
-- **Rental Bundles** — Camping, Party, Pickleball, Content Creator packages
-- Listing detail page: gallery, price, deposit, owner profile, reviews, condition, accessories, availability, rules, delivery/pickup, **Report Listing**
-- Live booking quote (rental fee + platform fee + delivery + **refundable deposit**)
-- **💬 In-app chat** with anti-circumvention warnings for off-platform transactions (GCash/Maya/Facebook/phone numbers, etc.)
-- **🙏 "I NEED SOMETHING"** demand marketplace — post a request, owners nearby get notified
-
-### Booking / transaction lifecycle
-`Request → Approve → Sign agreement (both parties) → Active → Check-in condition → Return → Deposit release → Review`
-
-- Auto-generated **digital rental agreement** with per-transaction details
-- **Security deposit** held separately from platform revenue (escrow-style), released or partially deducted on return
-- **Condition documentation** (check-in/check-out photos, serial, accessories, damage)
-- Cancellation with policy-based refunds (48h free / 24h partial)
-- Late-return fees and damage deductions
-- Ratings: renter ↔ owner (1–5★)
-- **Dispute system** with categories, evidence, and admin resolution
-
-### Owner side
-- **Rent-to-Earn dashboard**: this-month income, all-time earnings, items listed, active rentals, pending requests
-- **Top Earning Items**
-- List an item (multi-photo upload, price, deposit, delivery, conditions, rules, verification level)
-- Incoming booking requests
-- Promote listings (🔥 Featured) — basic / plus / premium ($49/$99/$199, configurable)
-
-### Wallet & Ledger
-- Every user gets a **wallet** balance driven by a proper **financial ledger** (`ledger_entries`) with running balances — **never** computed from the frontend
-- **Platform fee = 4% of rental price, min ₱20** (fully configurable in Admin → Settings)
-- Withdrawals (bank / GCash / Maya) simulated as payouts
-- Referral program: friend gets ₱50 credit, you get ₱50 after their first completed rental
-
-### Admin dashboard
-- Analytics (users, listings, bookings, gross value, platform revenue, disputes, top categories, top items/owners)
-- User management (verification, roles, suspend)
-- Listing management (status, feature/unfeature, remove)
-- Dispute resolution, refunds, payouts approval
-- **Marketplace fee settings** (commission %, min/max, featured pricing, referral rewards, cancellation windows) — change without touching code
-- Broadcast notifications, audit log
-
-### Legal pages
-Terms & Conditions, Privacy Policy, Rental Agreement, Cancellation, Refund, Damage & Loss, Prohibited Items, Owner Agreement, Renter Agreement — all versioned with electronic acceptance (`I Agree & Continue`).
-
-### Security
-- bcrypt password hashing, httpOnly session cookies, role-based access control
-- Server-side input validation, rate-limiting-ready structure, image upload validation
-- Anti-circumvention chat warnings
-- Separate financial & audit logging
-
-### Payment architecture
-`server/payment.js` is a **provider-agnostic gateway**:
-- A `PaymentProvider` interface (`charge`, `refund`, `releaseHold`)
-- Ships with a **Sandbox provider** for instant demo
-- Swap in **GCash / Maya / Stripe** by implementing the interface and setting `gateway.provider`
-- Raw card numbers are never stored — only provider tokens
-- real payments/deposits handled as escrow
-
-### PWA / mobile
-- Installable manifest + service worker + splash/icon
-- Responsive mobile-first layout with bottom nav
-- Phone push notification hook + geolocation-ready (latitude/longitude on listings & users)
-
----
-
-## Photos and Notifications
-
-Authenticated owners can upload up to eight image files per listing, with an 8 MB limit per file. Uploaded listing photos are stored under `public/uploads` for local pilot use. New messages create an in-app notification for the recipient, and publishing a listing creates a confirmation notification for its owner.
-
-For a clean local pilot database, stop the server and delete `data/gorenthive.db*`, then run `npm start`. This removes local pilot data; it does not affect Supabase.
-
-## Android APK
-
-The Capacitor Android project is included. Install Node.js 22+ and JDK 17, set `JAVA_HOME`, then run:
-
-```bash
-npm install
-npx cap sync android
-cd android
-gradlew.bat assembleDebug
-```
-
-The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. The APK uses the bundled web app; API data still comes from the server configured for the device, so production hosting and an Android network URL are required for phone testing.
-
----
-
-## Project Structure
-
-```
-gorenthive/
-├─ server/
-│  ├─ index.js            # Express app, static + API routing
-│  ├─ db/schema.js        # SQLite schema (node:sqlite), default settings/categories
-│  ├─ auth.js             # auth middleware, session + password helpers
-│  ├─ ledger.js           # financial ledger (commissions, balances, splits)
-│  ├─ payment.js          # provider-agnostic payment gateway (+ sandbox)
-│  ├─ settings.js         # commission & platform config
-│  ├─ notify.js           # notifications + anti-circumvention detection
-│  ├─ svggen.js           # branded SVG placeholder images
-│  └─ routes/             # auth, listings, bookings, messages, reviews, requests,
-│                         #    wallet, admin, legal, categories, notifications
-├─ public/
-│  ├─ index.html          # SPA shell + footer
-│  ├─ css/styles.css      # mobile-first marketplace theme
-│  ├─ js/api.js           # API client + helpers
-│  ├─ js/app.js           # SPA router + all views
-│  ├─ manifest.webmanifest
-│  ├─ service-worker.js
-│  └─ icons/              # PWA icons
-└─ package.json
-```
-
----
-
-## Future / Built-to-extend
-
-AI rental recommendations & pricing · photo condition comparison · delivery partners · insurance/protection products · business rental stores · subscriptions · rent-to-own · corporate rentals · event package generator · dynamic pricing · loyalty program · promo codes · affiliate program · public API · native apps.
-
----
-
-## Note
-
-These legal policies are drafts for demonstration. **Have qualified Philippine legal counsel review the Terms, payment/deposit structure, liability, consumer protection, privacy (Data Privacy Act), and vehicle-rental requirements before commercial launch.**
+The software can enforce configured workflow rules, but code does not establish legal enforceability by itself. Commercial terms, consumer obligations, privacy handling, marketplace payment structure, and high-risk rental categories should receive appropriate Philippine legal/compliance review before full public launch.

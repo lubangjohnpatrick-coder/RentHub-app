@@ -25,13 +25,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Syntax check server code
-        run: |
-          find server -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Syntax check
+        run: npm run qa:syntax
 
-      - name: Syntax check browser code
-        run: |
-          find public/js -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Asset integrity audit
+        run: npm run qa:assets
 
       - name: Launch regression assertions
         shell: bash
@@ -60,16 +58,18 @@ jobs:
         run: |
           node - <<'NODE'
           const fs = require('fs');
-          const s = fs.readFileSync('server/index.js','utf8');
-          const order = [
+          const source = fs.readFileSync('server/index.js', 'utf8');
+          const routers = [
             "require('./booking-v2')",
             "require('./launch-hardening')",
             "require('./verification-v2')",
             "require('./financial')",
             "require('./private')"
-          ].map(x => s.indexOf(x));
-          if (order.some(x => x < 0)) throw new Error('Missing launch router');
-          for (let i=1;i<order.length;i++) if (order[i] <= order[i-1]) throw new Error('Hardened route order is incorrect');
+          ].map((needle) => source.indexOf(needle));
+          if (routers.some((index) => index < 0)) throw new Error('Missing launch router');
+          for (let i = 1; i < routers.length; i += 1) {
+            if (routers[i] <= routers[i - 1]) throw new Error('Hardened route order is incorrect');
+          }
           NODE
 
       - name: Production dependency audit
