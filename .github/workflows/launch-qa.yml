@@ -1,0 +1,69 @@
+name: Launch QA
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check server code
+        run: |
+          find server -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Syntax check browser code
+        run: |
+          find public/js -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Launch regression assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f supabase/migrations/2026-09-04-launch-hardening.sql
+          test -f supabase/migrations/2026-09-04-location-hardening.sql
+          test -f supabase/migrations/2026-09-04-private-media.sql
+          grep -q "GATEWAY.*paymongo" render.yaml
+          grep -q "GoRentHive commission is deducted from owner earnings" server/booking-v2.js
+          grep -q "PAYMONGO_WEBHOOK_SECRET" server/paymongo-webhook.js
+          grep -q "private://" server/upload.js
+          grep -q "source !== 'gps'" server/location.js
+          grep -q "does not operate a delivery service" public/index.html
+          grep -q "₱499" public/js/launch-ready.js
+          grep -q "₱999" public/js/launch-ready.js
+          grep -q "Owner commission (8%)" public/js/launch-ready.js
+          ! grep -q "Platform fee (4%)" public/js/launch-ready.js
+          ! grep -q "GATEWAY=sandbox" render.yaml
+
+      - name: Validate production route precedence
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const s = fs.readFileSync('server/index.js','utf8');
+          const order = [
+            "require('./booking-v2')",
+            "require('./launch-hardening')",
+            "require('./verification-v2')",
+            "require('./financial')",
+            "require('./private')"
+          ].map(x => s.indexOf(x));
+          if (order.some(x => x < 0)) throw new Error('Missing launch router');
+          for (let i=1;i<order.length;i++) if (order[i] <= order[i-1]) throw new Error('Hardened route order is incorrect');
+          NODE
