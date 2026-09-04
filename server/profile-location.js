@@ -30,10 +30,6 @@ function verifiedFix(body) {
   return { latitude, longitude, accuracy, capturedAt };
 }
 
-// Compatibility hardening: the legacy /auth/address route used to accept raw
-// latitude/longitude and could overwrite a previously verified GPS fix. Textual
-// address fields may still be edited, but coordinates are exclusively managed by
-// the verified GPS route mounted before the legacy private router.
 router.post('/auth/address', requireAuth, async (req, res) => {
   if (req.body.latitude !== undefined || req.body.longitude !== undefined || req.body.lat !== undefined || req.body.lng !== undefined) {
     return res.status(400).json({ error: 'Coordinates cannot be edited manually. Use device GPS verification.', code: 'gps_required' });
@@ -91,18 +87,23 @@ router.patch('/profile/locations/:id', requireAuth, async (req, res) => {
   if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'Invalid saved location.' });
 
   const patch = { updated_at: now() };
+  const editsAddress = ['address','barangay','city','province'].some((key) => req.body[key] !== undefined);
+  const changingPosition = req.body.latitude !== undefined || req.body.longitude !== undefined || req.body.accuracy_m !== undefined || req.body.lat !== undefined || req.body.lng !== undefined;
+
+  // A typed address is descriptive. Any address/detail edit that implies a place
+  // must be bound to a fresh GPS fix so users cannot relabel a verified pin as a
+  // distant fake location while retaining the verified badge.
+  if (editsAddress || changingPosition) {
+    const fix = verifiedFix(req.body || {});
+    if (fix.error) return res.status(400).json({ error: fix.error, code: 'gps_verification_required' });
+    Object.assign(patch, { latitude: fix.latitude, longitude: fix.longitude, accuracy_m: fix.accuracy, verified_by: 'gps', verified_at: now(), captured_at: fix.capturedAt });
+  }
+
   if (req.body.label !== undefined) patch.label = normalizeText(req.body.label, 60);
   if (req.body.address !== undefined) patch.address = normalizeText(req.body.address, 180);
   if (req.body.barangay !== undefined) patch.barangay = normalizeText(req.body.barangay, 80);
   if (req.body.city !== undefined) patch.city = normalizeText(req.body.city, 80);
   if (req.body.province !== undefined) patch.province = normalizeText(req.body.province, 80);
-
-  const changingPosition = req.body.latitude !== undefined || req.body.longitude !== undefined || req.body.accuracy_m !== undefined || req.body.lat !== undefined || req.body.lng !== undefined;
-  if (changingPosition) {
-    const fix = verifiedFix(req.body || {});
-    if (fix.error) return res.status(400).json({ error: fix.error, code: 'gps_verification_required' });
-    Object.assign(patch, { latitude: fix.latitude, longitude: fix.longitude, accuracy_m: fix.accuracy, verified_by: 'gps', verified_at: now(), captured_at: fix.capturedAt });
-  }
 
   if (req.body.is_default === true) {
     await svcClient().from('saved_locations').update({ is_default: false, updated_at: now() }).eq('user_id', req.user.id);
