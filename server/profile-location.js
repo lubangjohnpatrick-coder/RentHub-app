@@ -7,6 +7,7 @@ const { requireAuth } = require('./auth-service');
 const router = express.Router();
 const MAX_GPS_AGE_MS = 2 * 60 * 1000;
 const MAX_GPS_ACCURACY_M = 100;
+const MAX_SAVED_LOCATIONS = 10;
 const now = () => Date.now();
 const validLat = (v) => Number.isFinite(v) && v >= -90 && v <= 90;
 const validLng = (v) => Number.isFinite(v) && v >= -180 && v <= 180;
@@ -29,6 +30,26 @@ function verifiedFix(body) {
   return { latitude, longitude, accuracy, capturedAt };
 }
 
+// Compatibility hardening: the legacy /auth/address route used to accept raw
+// latitude/longitude and could overwrite a previously verified GPS fix. Textual
+// address fields may still be edited, but coordinates are exclusively managed by
+// the verified GPS route mounted before the legacy private router.
+router.post('/auth/address', requireAuth, async (req, res) => {
+  if (req.body.latitude !== undefined || req.body.longitude !== undefined || req.body.lat !== undefined || req.body.lng !== undefined) {
+    return res.status(400).json({ error: 'Coordinates cannot be edited manually. Use device GPS verification.', code: 'gps_required' });
+  }
+
+  const patch = { updated_at: now() };
+  if (req.body.address !== undefined) patch.address = normalizeText(req.body.address, 180);
+  if (req.body.barangay !== undefined) patch.barangay = normalizeText(req.body.barangay, 80);
+  if (req.body.city !== undefined) patch.city = normalizeText(req.body.city, 80);
+  if (req.body.province !== undefined) patch.province = normalizeText(req.body.province, 80);
+
+  const { error } = await svcClient().from('users').update(patch).eq('id', req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 router.get('/profile/locations', requireAuth, async (req, res) => {
   const { data, error } = await svcClient().from('saved_locations').select('*').eq('user_id', req.user.id).order('is_default', { ascending: false }).order('updated_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
@@ -36,6 +57,10 @@ router.get('/profile/locations', requireAuth, async (req, res) => {
 });
 
 router.post('/profile/locations', requireAuth, async (req, res) => {
+  const count = await svcClient().from('saved_locations').select('id', { count: 'exact', head: true }).eq('user_id', req.user.id);
+  if (count.error) return res.status(500).json({ error: count.error.message });
+  if ((count.count || 0) >= MAX_SAVED_LOCATIONS) return res.status(409).json({ error: `You can save up to ${MAX_SAVED_LOCATIONS} locations.` });
+
   const fix = verifiedFix(req.body || {});
   if (fix.error) return res.status(400).json({ error: fix.error, code: 'gps_verification_required' });
 
@@ -72,7 +97,7 @@ router.patch('/profile/locations/:id', requireAuth, async (req, res) => {
   if (req.body.city !== undefined) patch.city = normalizeText(req.body.city, 80);
   if (req.body.province !== undefined) patch.province = normalizeText(req.body.province, 80);
 
-  const changingPosition = req.body.latitude !== undefined || req.body.longitude !== undefined || req.body.accuracy_m !== undefined;
+  const changingPosition = req.body.latitude !== undefined || req.body.longitude !== undefined || req.body.accuracy_m !== undefined || req.body.lat !== undefined || req.body.lng !== undefined;
   if (changingPosition) {
     const fix = verifiedFix(req.body || {});
     if (fix.error) return res.status(400).json({ error: fix.error, code: 'gps_verification_required' });
