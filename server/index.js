@@ -28,7 +28,6 @@ const { handleWebhook } = require('./paymongo-webhook');
 app.post('/api/paymongo/webhook', express.raw({ type: 'application/json', limit: '1mb' }), handleWebhook);
 app.use(express.json({ limit: '2mb' }));
 
-// Never cache authenticated/API JSON at shared proxies or browsers.
 app.use('/api', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Pragma', 'no-cache');
@@ -37,12 +36,12 @@ app.use('/api', (req, res, next) => {
 
 app.get('/healthz', (req, res) => res.json({ ok: true, name: 'GoRentHive', launchReady: true }));
 
-// Order matters. Hardened compatibility routes MUST run before the older
-// implementations so stale clients cannot bypass current launch rules.
+// Order matters. Hardened compatibility routes MUST run before older routes.
 app.use('/api', require('./no-delivery'));
 app.use('/api', require('./location'));
 app.use('/api', require('./booking-v2'));
 app.use('/api', require('./launch-hardening'));
+app.use('/api', require('./media'));
 app.use('/api', require('./financial'));
 app.use('/api', require('./private'));
 app.use('/api/upload', require('./upload'));
@@ -55,8 +54,6 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
   etag: true,
   setHeaders: (res, filePath) => {
     if (/\.(html|css|js|json|svg)$/i.test(filePath)) setUtf8(res);
-    // HTML and service worker must update immediately. Versioned static assets
-    // can be revalidated rather than being held indefinitely by stale caches.
     if (/index\.html$|service-worker\.js$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     } else if (/\.(css|js|json|webmanifest)$/i.test(filePath)) {
