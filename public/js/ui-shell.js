@@ -152,7 +152,7 @@
           <div class="grh-search-panel" role="search" aria-label="Search GoRentHive rentals">
             <div class="grh-search-field">
               <span class="grh-search-ico" aria-hidden="true">⌖</span>
-              <div><span class="grh-field-label">Location</span><strong>Uses your verified GPS location</strong></div>
+              <div><span class="label">Location</span><strong>Uses your verified GPS location</strong></div>
             </div>
             <div class="grh-search-field">
               <span class="grh-search-ico" aria-hidden="true">▦</span>
