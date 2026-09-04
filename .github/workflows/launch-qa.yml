@@ -59,6 +59,23 @@ jobs:
           ! grep -q "Platform fee (4%)" public/js/launch-ready.js
           ! grep -q "GATEWAY=sandbox" render.yaml
 
+      - name: UI and mobile contract assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f public/css/marketplace-preview.css
+          test -f public/css/ux-polish.css
+          grep -q "marketplacePreview" public/js/ui-shell.js
+          grep -q "Popular rentals around you" public/js/ui-shell.js
+          grep -q "grh-rental-preview-card" public/css/marketplace-preview.css
+          grep -q "prefers-reduced-motion" public/css/ux-polish.css
+          grep -q "@media(max-width:420px)" public/css/ux-polish.css
+          grep -q "grh-location-map" public/css/ux-polish.css
+          grep -q "grh-search-panel" public/css/ux-polish.css
+          grep -q "/css/ux-polish.css" public/index.html
+          grep -q "Confirm pin & save" public/js/profile-experience.js
+          grep -q "MAX_PIN_ADJUSTMENT_M = 200" server/profile-location.js
+
       - name: Validate production route precedence
         run: |
           node - <<'NODE'
