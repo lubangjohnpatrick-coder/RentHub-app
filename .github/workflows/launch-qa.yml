@@ -31,6 +31,9 @@ jobs:
       - name: Asset integrity audit
         run: npm run qa:assets
 
+      - name: Production contract audit
+        run: npm run qa:contracts
+
       - name: Launch regression assertions
         shell: bash
         run: |
@@ -45,6 +48,7 @@ jobs:
           grep -q "profile-photos" supabase/migrations/2026-09-05-profile-saved-locations.sql
           grep -q "Coordinates cannot be edited manually" server/profile-location.js
           grep -q "MAX_GPS_ACCURACY_M = 100" server/profile-location.js
+          grep -q "MAX_PIN_ADJUST_M = 200" server/profile-location.js
           grep -q "key: GATEWAY" render.yaml
           grep -q "value: paymongo" render.yaml
           grep -q "GoRentHive commission is deducted from owner earnings" server/booking-v2.js
@@ -59,22 +63,35 @@ jobs:
           ! grep -q "Platform fee (4%)" public/js/launch-ready.js
           ! grep -q "GATEWAY=sandbox" render.yaml
 
-      - name: UI and mobile contract assertions
+      - name: UI, mobile and photography assertions
         shell: bash
         run: |
           set -euo pipefail
-          test -f public/css/marketplace-preview.css
-          test -f public/css/ux-polish.css
-          grep -q "marketplacePreview" public/js/ui-shell.js
-          grep -q "Popular rentals around you" public/js/ui-shell.js
-          grep -q "grh-rental-preview-card" public/css/marketplace-preview.css
-          grep -q "prefers-reduced-motion" public/css/ux-polish.css
-          grep -q "@media(max-width:420px)" public/css/ux-polish.css
-          grep -q "grh-location-map" public/css/ux-polish.css
-          grep -q "grh-search-panel" public/css/ux-polish.css
-          grep -q "/css/ux-polish.css" public/index.html
+          test -f public/css/experience.css
+          test ! -f public/css/marketplace-preview.css
+          test ! -f public/css/ux-polish.css
+          grep -q "hydrateMarketplacePreview" public/js/ui-shell.js
+          grep -q "REAL LISTING" public/css/experience.css
+          grep -q "API.get('/listings')" public/js/ui-shell.js
+          grep -q "prefers-reduced-motion" public/css/experience.css
+          grep -q "@media(max-width:420px)" public/css/experience.css
+          grep -q "grh-location-map" public/css/experience.css
+          grep -q "grh-search-panel" public/css/experience.css
+          grep -q "/css/experience.css" public/index.html
           grep -q "Confirm pin & save" public/js/profile-experience.js
-          grep -q "MAX_PIN_ADJUST_M = 200" server/profile-location.js
+
+      - name: Security and readiness assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f server/readiness.js
+          grep -q "contentSecurityPolicy" server/index.js
+          grep -q "Permissions-Policy" server/index.js
+          grep -q "X-Request-ID" server/index.js
+          grep -q "health/readiness" server/readiness.js
+          grep -q "profile-photos" server/readiness.js
+          grep -q "rental-evidence" server/readiness.js
+          ! grep -RniE "escrow protected|provider-agnostic payment[[:space:]]*&[[:space:]]*escrow|get it delivered|platform delivery" public --include='*.html' --include='*.js'
 
       - name: Validate production route precedence
         run: |
