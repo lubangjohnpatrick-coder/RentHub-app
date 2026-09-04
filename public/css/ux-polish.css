@@ -1,0 +1,82 @@
+/* GoRentHive cross-page UX polish: visual depth, empty states, and small-screen ergonomics. */
+
+/* Hero visual storytelling */
+.grh-market-preview{position:relative;isolation:isolate}
+.grh-market-preview:before{content:"";position:absolute;inset:-18px;border-radius:30px;background:radial-gradient(circle at 88% 8%,rgba(255,196,33,.18),transparent 30%),radial-gradient(circle at 8% 88%,rgba(74,144,226,.12),transparent 28%);z-index:-1;pointer-events:none}
+.grh-rental-preview-card{box-shadow:0 14px 34px rgba(3,16,34,.16);transform:translateZ(0)}
+.grh-preview-visual{position:relative;overflow:hidden;min-height:142px}
+.grh-preview-visual:before,.grh-preview-visual:after{content:"";position:absolute;border-radius:999px;pointer-events:none}
+.grh-preview-visual:before{width:130px;height:130px;right:-34px;top:-42px;background:rgba(255,255,255,.08)}
+.grh-preview-visual:after{width:74px;height:74px;left:-16px;bottom:-25px;background:rgba(255,184,0,.12)}
+.grh-preview-visual svg{position:relative;z-index:2;width:58px;height:58px;filter:drop-shadow(0 10px 18px rgba(0,0,0,.16))}
+.grh-preview-visual>span{position:relative;z-index:2;letter-spacing:.14em}
+.grh-market-location{box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+
+/* Give standard empty states a useful onboarding feel instead of blank space. */
+.empty,.grh-empty-location{border:1px dashed #cbd7e5!important;border-radius:20px!important;background:linear-gradient(145deg,#fff 0%,#f8fbff 68%,#fff9e9 100%)!important;box-shadow:0 12px 34px rgba(11,31,58,.06)!important}
+.empty{max-width:720px;margin:28px auto!important;padding:34px 28px!important;text-align:center}
+.empty .em{display:grid!important;place-items:center;width:64px;height:64px;margin:0 auto 14px!important;border-radius:18px;background:#fff4c7;font-size:30px!important;box-shadow:0 8px 22px rgba(11,31,58,.08)}
+.empty h3{margin:0 0 8px;font-size:20px}
+.empty p{max-width:560px;margin:0 auto 16px!important;line-height:1.65}
+.grh-empty-location{padding:28px 22px!important;text-align:center!important;line-height:1.6!important}
+.grh-empty-location:before{content:"⌖";display:grid;width:56px;height:56px;place-items:center;margin:0 auto 12px;border-radius:18px;background:linear-gradient(145deg,#fff2bd,#fff8df);color:var(--grh-navy);font-size:27px;font-weight:800;box-shadow:0 8px 22px rgba(11,31,58,.08)}
+.grh-empty-location:after{content:"Use “Add location” above to verify your GPS and place a private pin for accurate nearby results.";display:block;max-width:470px;margin:8px auto 0;color:var(--grh-muted);font-size:12px;line-height:1.55}
+
+/* Subtle depth and feedback; animation is disabled for reduced-motion users. */
+.grh-trust-row>div,.grh-category-card,.grh-owner-strip,.grh-profile-photo-card,.grh-location-card{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.grh-trust-row>div:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(11,31,58,.07)}
+.grh-category-card:hover{transform:translateY(-3px)}
+.grh-market-preview{animation:grhEnter .48s ease-out both}
+@keyframes grhEnter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
+
+/* Grab-like map picker polish */
+.grh-map-shell{box-shadow:0 14px 34px rgba(11,31,58,.12)}
+.grh-location-map{min-height:360px;background:#eaf0f5}
+.grh-map-status{display:flex;align-items:center;min-height:44px}
+.grh-location-form-actions .btn{min-height:44px}
+
+/* Tablet/mobile: floating search becomes intentional rather than cramped. */
+@media(max-width:760px){
+  .grh-home-hero{padding-bottom:18px!important}
+  .grh-search-wrap{margin-top:18px!important}
+  .grh-search-panel{grid-template-columns:1fr!important;gap:0!important;padding:8px!important;border-radius:20px!important;box-shadow:0 16px 42px rgba(7,26,51,.14)!important}
+  .grh-search-field{min-height:66px!important;border-right:0!important;border-bottom:1px solid var(--grh-line)!important;padding:10px 12px!important}
+  .grh-search-field:nth-of-type(3){border-bottom:0!important}
+  .grh-search-button{width:100%!important;min-height:52px!important;margin-top:6px!important;border-radius:14px!important}
+  .grh-rental-preview-grid{grid-template-columns:1fr!important}
+  .grh-market-categories{overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap!important;padding-bottom:3px}
+  .grh-market-categories::-webkit-scrollbar{display:none}
+  .grh-market-categories a{flex:0 0 auto}
+}
+
+/* Target the common 390px phone width explicitly. */
+@media(max-width:420px){
+  .wrap{width:min(100% - 22px,1180px)!important}
+  .grh-home-hero{padding-top:26px!important}
+  .grh-hero-copy{padding:18px 0 22px!important}
+  .grh-hero-copy h1{font-size:clamp(38px,12vw,52px)!important;line-height:1.01!important}
+  .grh-hero-sub{font-size:16px!important;line-height:1.55!important}
+  .grh-trust-row{grid-template-columns:1fr 1fr!important;gap:8px!important;margin-top:24px!important}
+  .grh-trust-row>div{grid-template-columns:38px 1fr!important;padding:7px!important}
+  .grh-trust-row span{width:38px!important;height:38px!important}
+  .grh-hero-showcase{padding:18px!important;border-radius:22px!important}
+  .grh-market-topline{align-items:flex-start!important;gap:8px!important}
+  .grh-market-brand img{width:38px!important;height:38px!important}
+  .grh-market-brand strong{font-size:17px!important}
+  .grh-market-intro{font-size:12px!important;line-height:1.5!important}
+  .grh-preview-visual{min-height:112px!important}
+  .grh-preview-body{padding:13px!important}
+  .grh-search-wrap{margin-top:14px!important}
+  .grh-search-panel{border-radius:18px!important}
+  .grh-location-form-head{gap:10px!important;flex-direction:column!important;align-items:stretch!important}
+  #grh-use-current-location{width:100%!important}
+  .grh-location-map{min-height:300px!important;height:300px!important}
+  .grh-map-shell{border-radius:18px!important;overflow:hidden!important}
+  .grh-location-form-actions{display:flex!important;flex-direction:column-reverse!important;gap:8px!important}
+  .grh-location-form-actions .btn{width:100%!important;min-height:48px!important}
+  .grh-saved-location{grid-template-columns:1fr!important}
+  .grh-location-pin{margin-bottom:-4px}
+  .grh-location-actions{grid-column:auto!important;justify-content:stretch!important}
+  .grh-location-actions .btn{flex:1 1 100%;min-height:42px}
+}
