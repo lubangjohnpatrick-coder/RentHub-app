@@ -2,6 +2,7 @@
 
 // Authenticated image upload route.
 // - listing (default): public listing-photos bucket
+// - profile: public profile-photos bucket, scoped to the authenticated user
 // - evidence: private rental-evidence bucket, scoped to a booking party
 // - identity: private identity-docs bucket, scoped to the authenticated user
 
@@ -51,12 +52,17 @@ router.post('/', requireAuth, upload.array('files', 12), async (req, res) => {
   try {
     if (!req.files || !req.files.length) return res.status(400).json({ error: 'No files provided' });
     const scope = String(req.query.scope || req.body.scope || 'listing').toLowerCase();
-    if (!['listing','evidence','identity'].includes(scope)) return res.status(400).json({ error: 'Invalid upload scope' });
+    if (!['listing','profile','evidence','identity'].includes(scope)) return res.status(400).json({ error: 'Invalid upload scope' });
 
     let bucket = 'listing-photos';
     let prefix = `uploads/${req.user.id}`;
     let isPrivate = false;
 
+    if (scope === 'profile') {
+      if (req.files.length !== 1) return res.status(400).json({ error: 'Upload exactly one profile photo.' });
+      bucket = 'profile-photos';
+      prefix = `users/${req.user.id}`;
+    }
     if (scope === 'identity') {
       bucket = 'identity-docs';
       prefix = `users/${req.user.id}`;
@@ -81,7 +87,7 @@ router.post('/', requireAuth, upload.array('files', 12), async (req, res) => {
       const objectPath = `${prefix}/${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
       const { error } = await svcClient().storage.from(bucket).upload(objectPath, file.buffer, {
         contentType: file.mimetype,
-        cacheControl: isPrivate ? '0' : '3600',
+        cacheControl: isPrivate ? '0' : '86400',
         upsert: false,
       });
       if (error) throw new Error('Storage upload failed: ' + error.message);
