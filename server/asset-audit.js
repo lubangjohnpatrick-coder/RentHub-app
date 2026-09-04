@@ -16,6 +16,7 @@ const retiredAssets = [
   '/js/brand-refresh.js',
   '/js/homepage-redesign.js',
   '/js/reference-homepage.js',
+  '/js/terms-fix.js',
 ];
 
 function localPath(url) {
@@ -49,8 +50,7 @@ function collectServiceWorkerAssets(source) {
 function assertAssetsExist(urls, sourceName) {
   for (const url of urls) {
     const file = localPath(url);
-    if (!file) continue;
-    if (url === '/') continue;
+    if (!file || url === '/') continue;
     assert(fs.existsSync(file), `${sourceName} references missing asset: ${url}`);
   }
 }
@@ -77,7 +77,7 @@ function main() {
     '/js/location-hardening.js',
     '/js/launch-ready.js',
     '/js/private-media.js',
-    '/js/terms-fix.js',
+    '/js/legal-acceptance.js',
     '/js/ui-shell.js',
   ];
   for (const asset of required) {
@@ -86,6 +86,7 @@ function main() {
 
   assert((html.match(/<main\b/g) || []).length === 1, 'index.html should contain exactly one top-level <main>');
   assert(!/PLACEHOLDER|Lorem ipsum/i.test(html), 'index.html contains placeholder content');
+  assert(!html.includes('terms-fix.js'), 'hotfix filename must not return to production shell');
 
   console.log(`Asset audit passed: ${indexAssets.length} index assets, ${swAssets.length} precached assets.`);
 }
