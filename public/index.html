@@ -34,7 +34,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Production styles: base behavior, launch-specific surfaces, then one theme owner. -->
+  <!-- CSS ownership: base components -> launch flows -> single production theme. -->
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="/css/launch-ready.css">
   <link rel="stylesheet" href="/css/app-theme.css">
@@ -66,7 +66,9 @@
     <div class="wrap">
       <div class="footer-grid">
         <div>
-          <div class="brand logo"><span class="logo">🐝</span><span><b>Go</b>RentHive</span></div>
+          <a class="footer-brand" href="/" aria-label="GoRentHive home">
+            <img src="/brand/gorenthive-wordmark.png" width="188" height="54" alt="GoRentHive — Rent What You Need. Earn From What You Own.">
+          </a>
           <p class="tagline">Rent what you need. Earn from what you own. A peer-to-peer rental marketplace built for local, documented transactions.</p>
         </div>
         <div><h4>Marketplace</h4><ul><li><a href="/explore">Explore</a></li><li><a href="/categories">Categories</a></li><li><a href="/list">List an Item</a></li><li><a href="/rent">Rent</a></li><li><a href="/earn">Earn</a></li><li><a href="/pricing">Pricing</a></li></ul></div>
@@ -74,11 +76,11 @@
         <div><h4>Legal</h4><ul><li><a href="/legal/terms">Terms & Conditions</a></li><li><a href="/legal/privacy">Privacy Policy</a></li><li><a href="/legal/rental_agreement">Rental Agreement</a></li><li><a href="/legal/prohibited">Prohibited Items</a></li></ul></div>
         <div><h4>Get Started</h4><ul><li><a href="/register">Create Account</a></li><li><a href="/login">Log in</a></li><li><a href="/owner">For Owners</a></li></ul></div>
       </div>
-      <p style="font-size:11.5px;opacity:.72;margin-top:24px">© 2026 GoRentHive. All rights reserved. GoRentHive facilitates peer-to-peer rentals, does not own listed inventory, and does not operate a delivery service.</p>
+      <p class="footer-copyright">© 2026 GoRentHive. All rights reserved. GoRentHive facilitates peer-to-peer rentals, does not own listed inventory, and does not operate a delivery service.</p>
     </div>
   </footer>
 
-  <!-- Runtime order is deliberate: data/API, core app, security modules, legal compatibility, then one presentation shell. -->
+  <!-- Runtime ownership: API/core -> hardened domain modules -> legal compatibility -> presentation shell. -->
   <script src="/js/vendor/supabase.js"></script>
   <script src="/js/supabase-config.js"></script>
   <script src="/js/api.js"></script>
