@@ -19,14 +19,16 @@ app.use((req, res, next) => {
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
-// PayMongo needs the unmodified bytes. The handler itself fails closed when
-// PAYMONGO_WEBHOOK_SECRET is absent or the signature is invalid.
 const { handleWebhook } = require('./paymongo-webhook');
 app.post('/api/paymongo/webhook', express.raw({ type: 'application/json' }), handleWebhook);
 app.use(express.json({ limit: '2mb' }));
 
 app.get('/healthz', (req, res) => res.json({ ok: true, name: 'GoRentHive' }));
 
+// Marketplace policies run before the legacy route modules so they cannot be
+// bypassed by sending delivery/location fields directly to older endpoints.
+app.use('/api', require('./no-delivery'));
+app.use('/api', require('./location'));
 app.use('/api', require('./financial'));
 app.use('/api', require('./private'));
 app.use('/api', require('./launch-hardening'));
@@ -56,7 +58,7 @@ app.get('*', (req, res) => {
     .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${r.title}">`)
     .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${r.desc}">`)
     .replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${ogImage}">`)
-    .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}">`)
+    .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}</title>`)
     .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${r.desc}">`)
     .replace(/(<main class="page" id="app">)/, `$1\n${r.noscript}`);
   res.send(out);
