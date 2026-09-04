@@ -1,9 +1,15 @@
 User-agent: *
 Allow: /
-Disallow: /admin/
-Disallow: /account/
-Disallow: /messages/
-Disallow: /checkout/
+Disallow: /admin
+Disallow: /me
+Disallow: /messages
+Disallow: /wallet
+Disallow: /booking
+Disallow: /dashboard
+Disallow: /favorites
+Disallow: /verify
+Disallow: /premium
+Disallow: /checkout
 Disallow: /api/
 
 Sitemap: https://gorenthive.online/sitemap.xml

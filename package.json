@@ -1,52 +1,46 @@
 {
   "name": "gorenthive",
   "version": "1.0.0",
-  "description": "GoRentHive - Peer-to-peer rental marketplace. Need it? Rent it. Own it? Earn from it.",
+  "description": "GoRentHive - Philippine peer-to-peer rental marketplace.",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
     "test": "node server/smoketest.js",
+    "qa:syntax": "find server -name '*.js' -print0 | xargs -0 -n1 node --check && find public/js -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check",
     "mobile-test": "node server/mobiletest.js",
     "security-test": "node server/securitest.js",
     "dispute-test": "node server/disputetest.js",
     "golden-test": "node server/goldensuite.js",
     "icons": "node server/genicons.js"
   },
-  "keywords": [
-    "rental",
-    "marketplace",
-    "pwa",
-    "p2p",
-    "rent"
-  ],
+  "keywords": ["rental", "marketplace", "philippines", "pwa", "p2p", "rent"],
   "license": "UNLICENSED",
   "private": true,
-  "engines": {
-    "node": ">=22"
-  },
+  "engines": { "node": ">=22" },
   "dependencies": {
-    "@capacitor/android": "^6.2.1",
-    "@capacitor/cli": "^6.2.1",
-    "@capacitor/core": "^6.2.1",
     "@supabase/supabase-js": "^2.112.4",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
+    "express": "^4.22.2",
     "helmet": "^7.1.0",
-    "multer": "^1.4.5-lts.1"
+    "multer": "2.3.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/cli": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
     "puppeteer-core": "^25.9.0"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lubangjohnpatrick-coder/GoRentHive-app.git"
+    "url": "git+https://github.com/lubangjohnpatrick-coder/RentHub-app.git"
   },
   "author": "",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/lubangjohnpatrick-coder/GoRentHive-app/issues"
-  },
-  "homepage": "https://github.com/lubangjohnpatrick-coder/GoRentHive-app#readme"
+  "bugs": { "url": "https://github.com/lubangjohnpatrick-coder/RentHub-app/issues" },
+  "homepage": "https://gorenthive.online"
 }

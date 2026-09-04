@@ -3,7 +3,7 @@ services:
     name: gorenthive
     env: node
     plan: free
-    buildCommand: npm install --omit=dev
+    buildCommand: npm ci --omit=dev
     startCommand: node server/index.js
     healthCheckPath: /healthz
     envVars:
@@ -11,8 +11,10 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: CANON_HOST
+        value: gorenthive.online
       - key: GATEWAY
-        value: sandbox
+        value: paymongo
       - key: PAYMONGO_SECRET_KEY
         sync: false
       - key: PAYMONGO_PUBLIC_KEY
@@ -26,4 +28,12 @@ services:
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SMS_SENDER_WEBHOOK_URL
+        sync: false
+      - key: SMS_SENDER_WEBHOOK_SECRET
+        sync: false
+      - key: EMAIL_SENDER_WEBHOOK_URL
+        sync: false
+      - key: EMAIL_SENDER_WEBHOOK_SECRET
         sync: false
