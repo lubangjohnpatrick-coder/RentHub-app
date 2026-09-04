@@ -5,8 +5,8 @@
 
   function logoHtml(compact = false) {
     return compact
-      ? '<img src="/brand/gorenthive-mark.svg" class="brand-refresh-mark" alt="GoRentHive">'
-      : '<img src="/brand/gorenthive-logo.svg" class="brand-refresh-logo" alt="GoRentHive — Rent What You Need. Earn From What You Own.">';
+      ? '<img src="/brand/gorenthive-mark.png" class="brand-refresh-mark" alt="GoRentHive">'
+      : '<img src="/brand/gorenthive-wordmark.png" class="brand-refresh-logo" alt="GoRentHive — Rent What You Need. Earn From What You Own.">';
   }
 
   Root.renderNav = function () {
