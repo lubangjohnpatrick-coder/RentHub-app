@@ -18,7 +18,7 @@ function xml(v) {
   return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 function html(v) {
-  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 function cleanText(v, max = 160) {
   const text = String(v || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -84,7 +84,7 @@ async function listingRoute(pathname) {
     const ogImage = images[0] && /^https:\/\//i.test(String(images[0].url || '')) ? images[0].url : `${CANON}/icons/icon-512.png`;
     const price = Number(l.price_per_day || 0);
     const noscript = `<noscript><div style="max-width:800px;margin:0 auto;padding:48px 20px;text-align:center"><h1>${html(l.title)}</h1><p>${html(desc)}</p>${price > 0 ? `<p><strong>₱${price.toLocaleString('en-PH')}/day</strong></p>` : ''}<p><a href="/explore">Browse more rentals</a></p></div></noscript>`;
-    return { title, desc, ogImage, noscript, noindex: false };
+    return { title: html(title), desc: html(desc), ogImage, noscript, noindex: false };
   } catch (_) {
     return null;
   }
