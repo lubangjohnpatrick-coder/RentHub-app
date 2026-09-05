@@ -1,0 +1,100 @@
+/* GoRentHive motion system — subtle, product-first animation with reduced-motion safety. */
+:root{
+  --grh-ease-out:cubic-bezier(.22,1,.36,1);
+  --grh-ease-spring:cubic-bezier(.16,1,.3,1);
+  --grh-motion-fast:180ms;
+  --grh-motion-med:420ms;
+  --grh-motion-slow:720ms;
+}
+html{scroll-behavior:smooth}
+body{overflow-x:hidden}
+
+/* Route/page entrance. Content stays visible if JS is disabled. */
+#app.grh-page-enter{animation:grhPageIn .42s var(--grh-ease-out) both}
+@keyframes grhPageIn{from{opacity:.15;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Scroll reveal — opt-in only after the motion controller marks the document ready. */
+.grh-motion-ready [data-grh-reveal]{opacity:0;transform:translate3d(0,24px,0) scale(.988);filter:blur(2px);transition:opacity var(--grh-motion-slow) var(--grh-ease-out),transform var(--grh-motion-slow) var(--grh-ease-out),filter var(--grh-motion-med) ease;transition-delay:var(--grh-delay,0ms)}
+.grh-motion-ready [data-grh-reveal].is-visible{opacity:1;transform:none;filter:none}
+.grh-motion-ready [data-grh-reveal="left"]{transform:translate3d(-28px,0,0)}
+.grh-motion-ready [data-grh-reveal="right"]{transform:translate3d(28px,0,0)}
+.grh-motion-ready [data-grh-reveal="scale"]{transform:scale(.955)}
+.grh-motion-ready [data-grh-reveal="left"].is-visible,.grh-motion-ready [data-grh-reveal="right"].is-visible,.grh-motion-ready [data-grh-reveal="scale"].is-visible{transform:none}
+
+/* Premium hero motion inspired by modern marketplace landing pages. */
+.grh-hero-motion .hero-copy>*{animation:grhHeroRise .72s var(--grh-ease-out) both}
+.grh-hero-motion .hero-copy>*:nth-child(1){animation-delay:40ms}.grh-hero-motion .hero-copy>*:nth-child(2){animation-delay:100ms}.grh-hero-motion .hero-copy>*:nth-child(3){animation-delay:170ms}.grh-hero-motion .hero-copy>*:nth-child(4){animation-delay:240ms}.grh-hero-motion .hero-copy>*:nth-child(5){animation-delay:310ms}
+.grh-hero-motion .search-card,.grh-hero-motion .launch-search-card{animation:grhSearchLand .78s var(--grh-ease-spring) .22s both}
+@keyframes grhHeroRise{from{opacity:0;transform:translate3d(0,28px,0)}to{opacity:1;transform:none}}
+@keyframes grhSearchLand{from{opacity:0;transform:translate3d(0,34px,0) scale(.97)}to{opacity:1;transform:none}}
+.hero-visual .hv-card{animation:grhFloat 6s ease-in-out infinite;transform-origin:center}.hero-visual .hv-card:nth-child(2){animation-delay:-1.7s;animation-duration:6.8s}.hero-visual .hv-card:nth-child(3){animation-delay:-3.1s;animation-duration:7.4s}.hero-visual .hv-badge{animation:grhFloatSmall 5.5s ease-in-out infinite -1s}
+@keyframes grhFloat{0%,100%{transform:translate3d(0,0,0) rotate(0)}50%{transform:translate3d(0,-9px,0) rotate(.45deg)}}
+@keyframes grhFloatSmall{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.launch-hero:after{animation:grhHaloDrift 14s ease-in-out infinite;transform-origin:center}
+@keyframes grhHaloDrift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-18px,-12px,0) scale(1.035)}}
+
+/* Navigation feels lighter and more responsive when scrolling. */
+.topnav{transition:box-shadow .28s ease,background-color .28s ease,border-color .28s ease,transform .28s ease}
+.topnav.grh-nav-scrolled{background:rgba(255,255,255,.97)!important;box-shadow:0 10px 34px rgba(11,31,58,.10)!important;border-bottom-color:rgba(11,31,58,.10)}
+.topnav a,.bottom-nav a{transition:color var(--grh-motion-fast) ease,background-color var(--grh-motion-fast) ease,transform var(--grh-motion-fast) ease}
+.topnav a:hover{transform:translateY(-1px)}
+
+/* Cards and controls: tactile, not flashy. */
+.listing-card,.upgrade-card,.cat-card,.motors-grid article,.price-card,.detail-card,.booking-box,.grh-saved-searches article,.grh-notification{transition:transform .28s var(--grh-ease-out),box-shadow .28s var(--grh-ease-out),border-color .22s ease,background-color .22s ease}
+.upgrade-card:hover,.motors-grid article:hover,.grh-saved-searches article:hover{transform:translateY(-5px);box-shadow:0 22px 52px rgba(11,31,58,.13)}
+.grh-tilt{transform:perspective(900px) rotateX(var(--grh-rx,0deg)) rotateY(var(--grh-ry,0deg)) translateY(var(--grh-lift,0px));transform-style:preserve-3d;transition:transform .18s ease,box-shadow .28s ease}
+.grh-tilt:hover{--grh-lift:-4px}
+
+.btn,.search-btn,.grh-view-switch button,.grh-quick-replies button,.grh-favorite-btn{position:relative;transition:transform var(--grh-motion-fast) var(--grh-ease-out),box-shadow var(--grh-motion-fast) ease,background-color var(--grh-motion-fast) ease,border-color var(--grh-motion-fast) ease,color var(--grh-motion-fast) ease}
+.btn:active,.search-btn:active,.grh-view-switch button:active,.grh-quick-replies button:active,.grh-favorite-btn:active{transform:scale(.965)}
+.btn-primary,.search-btn{overflow:hidden;isolation:isolate}
+.btn-primary:after,.search-btn:after{content:"";position:absolute;inset:-40% auto -40% -70%;width:42%;transform:skewX(-18deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.42),transparent);transition:left .62s var(--grh-ease-out);pointer-events:none;z-index:-1}
+.btn-primary:hover:after,.search-btn:hover:after{left:135%}
+.grh-favorite-btn.grh-pop{animation:grhHeartPop .38s var(--grh-ease-spring)}
+@keyframes grhHeartPop{0%{transform:scale(1)}45%{transform:scale(1.28) rotate(-8deg)}100%{transform:scale(1)}}
+
+/* Availability and search/map transitions. */
+.marketplace-availability.is-visible .availability-day{animation:grhCalendarIn .4s var(--grh-ease-out) both}
+.marketplace-availability.is-visible .availability-day:nth-child(5n+1){animation-delay:20ms}.marketplace-availability.is-visible .availability-day:nth-child(5n+2){animation-delay:45ms}.marketplace-availability.is-visible .availability-day:nth-child(5n+3){animation-delay:70ms}.marketplace-availability.is-visible .availability-day:nth-child(5n+4){animation-delay:95ms}.marketplace-availability.is-visible .availability-day:nth-child(5n){animation-delay:120ms}
+@keyframes grhCalendarIn{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
+.grh-market-map:not([hidden]){animation:grhMapReveal .48s var(--grh-ease-out) both}
+@keyframes grhMapReveal{from{opacity:0;transform:scale(.985) translateY(8px)}to{opacity:1;transform:none}}
+.leaflet-marker-icon{animation:grhMarkerPop .38s var(--grh-ease-spring) both}
+@keyframes grhMarkerPop{from{opacity:0;transform:scale(.6) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+/* Messaging and notifications. */
+.msg{animation:grhMessageIn .3s var(--grh-ease-out) both}.msg.me{transform-origin:right bottom}.msg.them{transform-origin:left bottom}
+@keyframes grhMessageIn{from{opacity:0;transform:translateY(6px) scale(.975)}to{opacity:1;transform:none}}
+.grh-notification:not(.read) .grh-notif-icon{position:relative}.grh-notification:not(.read) .grh-notif-icon:after{content:"";position:absolute;right:-2px;top:-2px;width:8px;height:8px;border-radius:50%;background:#f3a712;box-shadow:0 0 0 0 rgba(243,167,18,.45);animation:grhPulse 2.1s ease-out infinite}
+@keyframes grhPulse{0%{box-shadow:0 0 0 0 rgba(243,167,18,.42)}70%{box-shadow:0 0 0 8px rgba(243,167,18,0)}100%{box-shadow:0 0 0 0 rgba(243,167,18,0)}}
+
+/* Modals and QR handover are intentionally clear and ceremonial. */
+.modal,.modal-card,[role="dialog"]{transform-origin:center top}
+.modal.open .modal-card,.modal[open] .modal-card,[role="dialog"].open{animation:grhModalIn .42s var(--grh-ease-spring) both}
+@keyframes grhModalIn{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}
+.grh-qr-wrap,.grh-qr-stage,.qr-wrap{position:relative;overflow:hidden}.grh-qr-wrap:after,.grh-qr-stage:after,.qr-wrap:after{content:"";position:absolute;left:8%;right:8%;height:2px;top:16%;background:linear-gradient(90deg,transparent,#f3a712,transparent);box-shadow:0 0 14px rgba(243,167,18,.75);animation:grhQrScan 2.6s ease-in-out infinite;pointer-events:none}
+@keyframes grhQrScan{0%,100%{transform:translateY(0);opacity:.45}50%{transform:translateY(150px);opacity:1}}
+
+/* Loading states feel intentional instead of frozen. */
+.spinner{position:relative;overflow:hidden}.spinner:after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(243,167,18,.16),transparent);animation:grhShimmer 1.35s linear infinite}
+@keyframes grhShimmer{to{transform:translateX(100%)}}
+
+/* Desktop pointer parallax is subtle and never affects touch devices. */
+@media (hover:hover) and (pointer:fine){
+  .grh-hero-parallax .hero-visual{transform:translate3d(calc(var(--grh-px,0) * 1px),calc(var(--grh-py,0) * 1px),0);transition:transform .18s ease-out}
+  .grh-hero-parallax .launch-search-card,.grh-hero-parallax .search-card{transform:translate3d(calc(var(--grh-px,0) * -.16px),calc(var(--grh-py,0) * -.12px),0)}
+}
+
+@media(max-width:720px){
+  .grh-motion-ready [data-grh-reveal]{transform:translate3d(0,16px,0);filter:none}.grh-motion-ready [data-grh-reveal].is-visible{transform:none}
+  .hero-visual .hv-card,.hero-visual .hv-badge{animation-duration:8s}
+  .grh-tilt{transform:none!important}
+}
+
+/* Accessibility: all non-essential animation disappears when requested. */
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  .grh-motion-ready [data-grh-reveal]{opacity:1!important;transform:none!important;filter:none!important}
+  .grh-hero-parallax .hero-visual,.grh-hero-parallax .launch-search-card,.grh-hero-parallax .search-card{transform:none!important}
+}
