@@ -17,9 +17,8 @@ set delivery_available = false,
     updated_at = (extract(epoch from now())*1000)::bigint
 where delivery_available is true or coalesce(delivery_fee, 0) <> 0;
 
--- Serialize wallet mutations for a user. The previous implementation read the
--- balance without a row lock, so concurrent entries could record an incorrect
--- balance_after even though the arithmetic update itself was atomic.
+-- Serialize wallet mutations for a user so ledger balance_after values remain
+-- correct under concurrent requests.
 create or replace function public.ledger_entry(
   p_booking_id bigint,
   p_user_id uuid,
@@ -44,13 +43,10 @@ begin
       where id = p_user_id
       for update;
 
-    if not found then
-      raise exception 'wallet user not found';
-    end if;
+    if not found then raise exception 'wallet user not found'; end if;
   end if;
 
   v_new_balance := before_balance + p_amount;
-
   insert into public.ledger_entries
     (booking_id, user_id, type, amount, balance_after, meta, created_at)
   values
@@ -73,10 +69,86 @@ revoke all on function public.ledger_entry(bigint, uuid, text, integer, text) fr
 revoke all on function public.ledger_entry(bigint, uuid, text, integer, text) from anon, authenticated;
 grant execute on function public.ledger_entry(bigint, uuid, text, integer, text) to service_role;
 
+-- Reserve both rental and deposit funds atomically after a booking row has been
+-- created. The wallet is locked and rechecked inside Postgres, preventing two
+-- concurrent booking requests from both spending the same available balance.
+create or replace function public.reserve_booking_funds(
+  p_booking_id bigint,
+  p_renter_id uuid,
+  p_owner_id uuid,
+  p_rental_amount integer,
+  p_deposit_amount integer,
+  p_booking_ref text
+)
+returns table (reservation_status text, new_balance integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  before_balance integer;
+  working_balance integer;
+  total_required integer;
+  ts bigint := (extract(epoch from now())*1000)::bigint;
+begin
+  if p_rental_amount < 0 or p_deposit_amount < 0 then
+    raise exception 'invalid booking reservation amount';
+  end if;
+
+  select coalesce(wallet_balance, 0)
+    into before_balance
+    from public.users
+    where id = p_renter_id
+    for update;
+  if not found then
+    return query select 'user_not_found'::text, 0::integer;
+    return;
+  end if;
+
+  total_required := p_rental_amount + p_deposit_amount;
+  if before_balance < total_required then
+    return query select 'insufficient_funds'::text, before_balance;
+    return;
+  end if;
+
+  working_balance := before_balance;
+  if p_rental_amount > 0 then
+    working_balance := working_balance - p_rental_amount;
+    insert into public.ledger_entries
+      (booking_id, user_id, type, amount, balance_after, meta, created_at)
+    values
+      (p_booking_id, p_renter_id, 'rental_escrow', -p_rental_amount, working_balance,
+       jsonb_build_object('booking_ref', p_booking_ref)::text, ts);
+  end if;
+
+  if p_deposit_amount > 0 then
+    working_balance := working_balance - p_deposit_amount;
+    insert into public.ledger_entries
+      (booking_id, user_id, type, amount, balance_after, meta, created_at)
+    values
+      (p_booking_id, p_renter_id, 'deposit_escrow', -p_deposit_amount, working_balance,
+       jsonb_build_object('booking_ref', p_booking_ref)::text, ts);
+
+    insert into public.security_deposits
+      (booking_id, renter_id, owner_id, amount, status)
+    values
+      (p_booking_id, p_renter_id, p_owner_id, p_deposit_amount, 'held');
+  end if;
+
+  update public.users
+    set wallet_balance = working_balance, updated_at = ts
+    where id = p_renter_id;
+
+  return query select 'reserved'::text, working_balance;
+end;
+$$;
+
+revoke all on function public.reserve_booking_funds(bigint, uuid, uuid, integer, integer, text) from public;
+revoke all on function public.reserve_booking_funds(bigint, uuid, uuid, integer, integer, text) from anon, authenticated;
+grant execute on function public.reserve_booking_funds(bigint, uuid, uuid, integer, integer, text) to service_role;
+
 -- Claim a pending PayMongo payment and credit its wallet exactly once in the
--- SAME database transaction. Webhook and browser confirmation can race safely:
--- one caller transitions pending -> succeeded and credits; all others return
--- "already" without creating another ledger entry.
+-- SAME database transaction. Webhook and browser confirmation can race safely.
 create or replace function public.settle_payment_credit(
   p_payment_id bigint,
   p_provider_ref text default null
@@ -124,7 +196,6 @@ begin
     meta_json := '{}'::jsonb;
   end;
   meta_json := meta_json || jsonb_build_object('provider_ref', coalesce(p_provider_ref, ''));
-
   after_balance := before_balance + p.gross_amount;
 
   update public.payments
