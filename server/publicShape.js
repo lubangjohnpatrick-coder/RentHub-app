@@ -1,8 +1,8 @@
 'use strict';
 
 // Shared response-shape helpers. Public marketplace responses intentionally do
-// not expose exact listing coordinates. Distance is calculated server-side by
-// the verified-radius endpoint and only the rounded distance is returned.
+// not expose exact listing coordinates or a user's private street/barangay
+// address. Distance is calculated server-side by the verified-radius endpoint.
 
 function publicUser(u) {
   if (!u) return null;
@@ -19,8 +19,8 @@ function publicUser(u) {
     email_verified: !!u.email_verified,
     identity_status: u.identity_status || 'none',
     identity_level: u.identity_level || 1,
-    address: u.address || '',
-    barangay: u.barangay || '',
+    // Broad locality is enough for trust/profile display. Exact account address,
+    // barangay and coordinates stay server-side/private.
     city: u.city || '',
     province: u.province || '',
     location_verified: u.location_status === 'verified',
