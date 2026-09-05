@@ -99,6 +99,7 @@ jobs:
           test -f supabase/migrations/2026-09-05-financial-integrity.sql
           test -f supabase/migrations/2026-09-05-marketplace-trust-vehicle-upgrades.sql
           test -f supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          test -f supabase/migrations/2026-09-05-marketplace-pro-dedupe-fix.sql
           grep -q 'owner_id uuid' supabase/migrations/2026-09-05-marketplace-trust-vehicle-upgrades.sql
           grep -q 'driver_verifications' supabase/migrations/2026-09-05-marketplace-trust-vehicle-upgrades.sql
           grep -q 'listing_pricing' supabase/migrations/2026-09-05-marketplace-pro-experience.sql
@@ -108,6 +109,7 @@ jobs:
           grep -q 'booking_handover_tokens' supabase/migrations/2026-09-05-marketplace-pro-experience.sql
           grep -q 'snapshot_hash' supabase/migrations/2026-09-05-marketplace-pro-experience.sql
           grep -q "pricing_unit text not null default 'daily'" supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          grep -q 'notifications_user_dedupe_idx' supabase/migrations/2026-09-05-marketplace-pro-dedupe-fix.sql
           grep -q "GoRentHive commission is deducted from owner earnings" server/booking-v2.js
           grep -q "settle_payment_credit" server/paymongo-webhook.js
           grep -q "PAYMONGO_WEBHOOK_SECRET" server/paymongo-webhook.js
@@ -173,7 +175,8 @@ jobs:
           ! grep -q "latitude: row.latitude" server/publicShape.js
           ! grep -q "longitude: row.longitude" server/publicShape.js
           grep -q "delivery_available: false" server/publicShape.js
-          grep -q "query = query.eq('category_id', category)" server/listings-v2.js
+          grep -Eq "query[[:space:]]*=[[:space:]]*query\.eq\('category_id',[[:space:]]*category\)" server/listings-v2.js
+          grep -q "listing_pricing" server/listings-v2.js
           grep -q "This payment belongs to another account" server/payment-v2.js
           ! grep -qiE "escrow protected|provider-agnostic payment[[:space:]]*&[[:space:]]*escrow|get it delivered|platform delivery" public/index.html public/js/ui-shell.js
           grep -q "replaceText(n, 'Escrow protected', 'Protected payments')" public/js/launch-ready.js
