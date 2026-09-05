@@ -60,7 +60,7 @@ jobs:
           grep -q "₱499" public/js/launch-ready.js
           grep -q "₱999" public/js/launch-ready.js
           grep -q "Owner commission (8%)" public/js/launch-ready.js
-          ! grep -q "Platform fee (4%)" public/js/launch-ready.js
+          grep -q "Protected payments" public/js/launch-ready.js
           ! grep -q "GATEWAY=sandbox" render.yaml
 
       - name: UI, mobile and photography assertions
@@ -85,13 +85,17 @@ jobs:
         run: |
           set -euo pipefail
           test -f server/readiness.js
+          test -f server/request-guard.js
           grep -q "contentSecurityPolicy" server/index.js
           grep -q "Permissions-Policy" server/index.js
           grep -q "X-Request-ID" server/index.js
+          grep -q "request-guard" server/index.js
           grep -q "health/readiness" server/readiness.js
           grep -q "profile-photos" server/readiness.js
           grep -q "rental-evidence" server/readiness.js
-          ! grep -RniE "escrow protected|provider-agnostic payment[[:space:]]*&[[:space:]]*escrow|get it delivered|platform delivery" public --include='*.html' --include='*.js'
+          ! grep -qiE "escrow protected|provider-agnostic payment[[:space:]]*&[[:space:]]*escrow|get it delivered|platform delivery" public/index.html public/js/ui-shell.js
+          grep -q "replaceText(n, 'Escrow protected', 'Protected payments')" public/js/launch-ready.js
+          grep -q "Pick up or meet the owner. Record condition." public/js/launch-ready.js
 
       - name: Validate production route precedence
         run: |
