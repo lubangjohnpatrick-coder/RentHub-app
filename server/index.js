@@ -77,7 +77,7 @@ app.use('/api', (req, res, next) => { res.setHeader('Cache-Control', 'no-store')
 app.get('/healthz', (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, name: 'GoRentHive', status: 'alive' }); });
 app.use(require('./readiness'));
 
-// Order matters. Specific trust/regulatory routes run before generic compatibility routes.
+// Order matters. Specific trust/regulatory/release routes run before generic compatibility routes.
 app.use('/api', require('./no-delivery'));
 app.use('/api', require('./vehicle-compliance'));
 app.use('/api', require('./marketplace-pro'));
@@ -95,6 +95,7 @@ app.use('/api', require('./verification-v2'));
 app.use('/api', require('./media'));
 app.use('/api', require('./payment-v2'));
 app.use('/api', require('./financial'));
+app.use('/api', require('./plan-release'));
 app.use('/api', require('./private'));
 app.use('/api/upload', require('./upload'));
 
