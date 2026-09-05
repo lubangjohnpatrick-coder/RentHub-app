@@ -11,25 +11,39 @@ const prerender = require('./prerender');
 const app = express();
 const PORT = process.env.PORT || 4000;
 const SITE_HOST = process.env.CANON_HOST || 'gorenthive.online';
+const IS_PROD = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
+function healthPath(req) {
+  return /^\/health(?:z|\/|$)/.test(req.path || '');
+}
+
+// One public origin. Render's service hostname remains usable for health checks,
+// but normal production traffic is redirected to the canonical custom domain.
 app.use((req, res, next) => {
-  const host = (req.get('host') || '').toLowerCase();
-  if (host === 'www.' + SITE_HOST || host === 'www.' + SITE_HOST + ':443') return res.redirect(301, 'https://' + SITE_HOST + req.originalUrl);
+  const host = (req.get('host') || '').toLowerCase().replace(/:\d+$/, '');
+  const forwardedProto = String(req.get('x-forwarded-proto') || req.protocol || '').toLowerCase();
+  if (host === 'www.' + SITE_HOST) return res.redirect(301, 'https://' + SITE_HOST + req.originalUrl);
+  if (IS_PROD && !healthPath(req)) {
+    if (host && host !== SITE_HOST) return res.redirect(308, 'https://' + SITE_HOST + req.originalUrl);
+    if (forwardedProto && forwardedProto !== 'https') return res.redirect(308, 'https://' + SITE_HOST + req.originalUrl);
+  }
   next();
 });
 
 app.use((req, res, next) => {
-  const requestId = String(req.get('x-request-id') || '').slice(0, 100) || crypto.randomUUID();
+  const supplied = String(req.get('x-request-id') || '').trim();
+  const requestId = /^[A-Za-z0-9._:-]{1,100}$/.test(supplied) ? supplied : crypto.randomUUID();
   req.requestId = requestId;
   res.setHeader('X-Request-ID', requestId);
   next();
 });
 
-// The legacy SPA still contains inline event handlers. We therefore keep
-// 'unsafe-inline' temporarily, but enforce a constrained CSP rather than
-// disabling CSP entirely. Tighten further as inline handlers are migrated.
+// The SPA still uses inline style attributes and legacy inline event handlers.
+// CSP separates element and attribute policies: arbitrary inline <script>
+// elements are blocked, while legacy event attributes remain temporarily
+// permitted until the final event-delegation migration.
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
@@ -39,12 +53,19 @@ app.use(helmet({
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
       formAction: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
+      scriptSrc: ["'self'", 'https://unpkg.com'],
+      scriptSrcElem: ["'self'", 'https://unpkg.com'],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      styleSrc: ["'self'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
+      styleSrcElem: ["'self'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
+      styleSrcAttr: ["'unsafe-inline'"],
       fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
       connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'],
       frameSrc: ["'self'", 'https://checkout.paymongo.com'],
+      workerSrc: ["'self'", 'blob:'],
+      manifestSrc: ["'self'"],
+      mediaSrc: ["'self'", 'blob:', 'https:'],
       upgradeInsecureRequests: [],
     },
   },
@@ -52,6 +73,27 @@ app.use(helmet({
 }));
 app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(self), microphone=()');
+  next();
+});
+
+// Request telemetry intentionally excludes request bodies, authorization
+// headers, exact GPS coordinates and personal data. Render captures stdout.
+app.use((req, res, next) => {
+  const started = process.hrtime.bigint();
+  res.on('finish', () => {
+    if (!req.path.startsWith('/api/')) return;
+    const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
+    if (res.statusCode >= 400 || durationMs >= 1500) {
+      console.log(JSON.stringify({
+        type: 'http',
+        request_id: req.requestId,
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        duration_ms: Math.round(durationMs),
+      }));
+    }
+  });
   next();
 });
 
@@ -68,7 +110,10 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-app.get('/healthz', (req, res) => res.json({ ok: true, name: 'GoRentHive', status: 'alive' }));
+app.get('/healthz', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ok: true, name: 'GoRentHive', status: 'alive' });
+});
 app.use(require('./readiness'));
 
 // Order matters. Hardened compatibility routes MUST run before older routes.
@@ -131,7 +176,16 @@ app.get('*', (req, res) => {
 app.use((err, req, res, next) => {
   console.error(`[${req.requestId || 'no-request-id'}]`, err);
   if (res.headersSent) return next(err);
-  res.status(err.status || 500).json({ error: err.message || 'Server error', request_id: req.requestId });
+  const status = err.status || 500;
+  const message = status >= 500 && IS_PROD ? 'Server error' : (err.message || 'Server error');
+  res.status(status).json({ error: message, request_id: req.requestId });
 });
 
-app.listen(PORT, () => console.log('GoRentHive running on http://localhost:' + PORT));
+const server = app.listen(PORT, () => console.log('GoRentHive running on port ' + PORT));
+function shutdown(signal) {
+  console.log(JSON.stringify({ type: 'shutdown', signal }));
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
