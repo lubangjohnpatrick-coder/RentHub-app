@@ -18,6 +18,7 @@ const publicShape = read('server/publicShape.js');
 const listingsV2 = read('server/listings-v2.js');
 const seo = read('server/seo.js');
 const upload = read('server/upload.js');
+const builder = read('server/build-assets.js');
 
 const effectivePublicText = `${index}\n${ui}`.toLowerCase();
 const bannedEffectiveClaims = [
@@ -37,7 +38,7 @@ assert(ui.includes('hydrateMarketplacePreview'), 'Homepage must hydrate with rea
 assert(experience.includes('REAL LISTING'), 'Real listing imagery must be explicitly distinguished from fallback visuals');
 assert(ui.includes("API.get('/listings')"), 'Homepage must source live listing visuals from the marketplace API');
 assert(!ui.includes('₱750/day') && !ui.includes('₱250/day'), 'Homepage must not contain fake sample rental pricing');
-assert(index.includes('/css/experience.css'), 'Production shell must load consolidated experience.css');
+assert(index.includes('/dist/app.css') && builder.includes("'css/experience.css'"), 'Production shell must ship the consolidated experience layer');
 assert(!index.includes('marketplace-preview.css') && !index.includes('ux-polish.css'), 'Retired presentation layers must stay removed');
 
 assert(serverIndex.includes('contentSecurityPolicy'), 'Production server must enforce a Content-Security-Policy');
