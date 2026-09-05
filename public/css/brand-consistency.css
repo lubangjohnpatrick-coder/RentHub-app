@@ -1,0 +1,7 @@
+/* Canonical GoRentHive identity styles. */
+.grh-canonical-eyebrow{display:inline-flex!important;align-items:center!important;gap:8px!important}
+.grh-inline-brand-mark{display:inline-block;width:22px!important;height:24px!important;object-fit:contain!important;flex:0 0 auto!important}
+.grh-auth-brand{display:flex!important;align-items:center!important;justify-content:center!important;min-height:64px!important;background:transparent!important}
+.grh-auth-brand .grh-wordmark{width:min(230px,72vw)!important;height:auto!important;object-fit:contain!important}
+#topnav .grh-wordmark,.footer .grh-wordmark{object-fit:contain!important;height:auto!important}
+@media(max-width:600px){.grh-inline-brand-mark{width:19px!important;height:21px!important}.grh-auth-brand .grh-wordmark{width:min(205px,68vw)!important}}
