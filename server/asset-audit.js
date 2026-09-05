@@ -21,7 +21,7 @@ const retiredAssets = [
   '/js/terms-fix.js',
 ];
 
-const APP_ROUTE_RE = /^\/(?:api|explore|categories|listing|booking|list|rent|earn|pricing|how-it-works|trust-safety|about|help|contact|legal|register|login|owner|dashboard|premium|messages|favorites|wallet|me|profile|requests|admin|verify)(?:\/|$|\?)/;
+const APP_ROUTE_RE = /^\/(?:api|explore|categories|listing|booking|list|rent|earn|pricing|how-it-works|trust-safety|about|help|contact|legal|register|login|owner|dashboard|premium|messages|favorites|wallet|me|profile|requests|motors|admin|verify)(?:\/|$|\?)/;
 
 function localPath(url) {
   if (!url || !url.startsWith('/') || url.startsWith('//')) return null;
@@ -79,6 +79,7 @@ function main() {
     '/css/app-theme.css',
     '/css/profile-experience.css',
     '/css/experience.css',
+    '/css/marketplace-upgrades.css',
     '/js/app.js',
     '/js/location-hardening.js',
     '/js/launch-ready.js',
@@ -87,6 +88,7 @@ function main() {
     '/js/legal-acceptance.js',
     '/js/ui-shell.js',
     '/js/profile-experience.js',
+    '/js/marketplace-upgrades.js',
   ];
   for (const asset of required) {
     assert(html.includes(asset), `index.html must load required production asset: ${asset}`);
@@ -96,7 +98,7 @@ function main() {
   assert((html.match(/<main\b/g) || []).length === 1, 'index.html should contain exactly one top-level <main>');
   assert(!/PLACEHOLDER|Lorem ipsum/i.test(html), 'index.html contains placeholder content');
   assert(!html.includes('terms-fix.js'), 'hotfix filename must not return to production shell');
-  assert((html.match(/<link rel="stylesheet"/g) || []).length <= 6, 'Production shell has too many stylesheet layers; consolidate ownership');
+  assert((html.match(/<link rel="stylesheet"/g) || []).length <= 7, 'Production shell has too many stylesheet layers; consolidate ownership');
 
   console.log(`Asset audit passed: ${indexAssets.length} index assets, ${swAssets.length} precached assets.`);
 }
