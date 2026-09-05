@@ -14,6 +14,17 @@ function configured(value, placeholders = []) {
   return !!v && !placeholders.includes(v);
 }
 
+function httpsConfigured(value) {
+  const v = String(value || '').trim();
+  if (!v) return false;
+  try { return new URL(v).protocol === 'https:'; } catch (_) { return false; }
+}
+
+function strongSecret(value) {
+  const v = String(value || '').trim();
+  return v.length >= 32 && !['change-me', 'your-app-secret'].includes(v);
+}
+
 function paymentConfig() {
   const secret = String(process.env.PAYMONGO_SECRET_KEY || '');
   const webhook = String(process.env.PAYMONGO_WEBHOOK_SECRET || '');
@@ -52,7 +63,9 @@ async function buildReadiness() {
   const supabaseConfigured = configured(process.env.SUPABASE_URL)
     && configured(process.env.SUPABASE_SERVICE_ROLE_KEY, ['your-service-role-key'])
     && configured(process.env.SUPABASE_ANON_KEY, ['your-project-anon-key']);
-  const appSecretConfigured = configured(process.env.APP_SECRET, ['change-me', 'your-app-secret']);
+  const appSecretConfigured = strongSecret(process.env.APP_SECRET);
+  const smsSenderConfigured = httpsConfigured(process.env.SMS_SENDER_WEBHOOK_URL);
+  const emailSenderConfigured = httpsConfigured(process.env.EMAIL_SENDER_WEBHOOK_URL);
   const payments = paymentConfig();
 
   let database = { ok: false };
@@ -75,7 +88,10 @@ async function buildReadiness() {
     appSecret: appSecretConfigured,
     paymentGateway: payments.gateway,
     paymentSecret: payments.secretConfigured,
+    paymentLiveKey: production ? payments.liveKey : payments.secretConfigured,
     paymentWebhook: payments.webhookConfigured,
+    smsVerificationSender: production ? smsSenderConfigured : true,
+    emailVerificationSender: production ? emailSenderConfigured : true,
   };
   const ready = Object.values(checks).every(Boolean);
   return {
