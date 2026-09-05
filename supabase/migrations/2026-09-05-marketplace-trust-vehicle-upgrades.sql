@@ -1,9 +1,10 @@
 -- GoRentHive marketplace trust + regulated vehicle rental foundation
 -- Apply in Supabase before deploying the associated server/frontend code.
+-- public.users.id is UUID; listing / booking identifiers are bigint.
 
 create table if not exists public.vehicle_compliance (
   listing_id bigint primary key references public.listings(id) on delete cascade,
-  owner_id bigint not null references public.users(id) on delete cascade,
+  owner_id uuid not null references public.users(id) on delete cascade,
   make text not null default '',
   model text not null default '',
   model_year integer,
@@ -23,7 +24,7 @@ create table if not exists public.vehicle_compliance (
   insurance_verified boolean not null default false,
   ctpl_verified boolean not null default false,
   status text not null default 'pending' check (status in ('pending','verified','rejected','expired')),
-  reviewer_id bigint references public.users(id) on delete set null,
+  reviewer_id uuid references public.users(id) on delete set null,
   reviewed_at bigint,
   review_notes text not null default '',
   created_at bigint not null default ((extract(epoch from now()) * 1000)::bigint),
@@ -34,12 +35,12 @@ create index if not exists idx_vehicle_compliance_owner on public.vehicle_compli
 create index if not exists idx_vehicle_compliance_status on public.vehicle_compliance(status);
 
 create table if not exists public.driver_verifications (
-  user_id bigint primary key references public.users(id) on delete cascade,
+  user_id uuid primary key references public.users(id) on delete cascade,
   license_last4 text not null default '',
   license_class text not null default '',
   license_expiry bigint not null default 0,
   status text not null default 'pending' check (status in ('pending','verified','rejected','expired')),
-  reviewer_id bigint references public.users(id) on delete set null,
+  reviewer_id uuid references public.users(id) on delete set null,
   reviewed_at bigint,
   review_notes text not null default '',
   created_at bigint not null default ((extract(epoch from now()) * 1000)::bigint),
@@ -51,7 +52,7 @@ create index if not exists idx_driver_verifications_status on public.driver_veri
 create table if not exists public.booking_handover_codes (
   booking_id bigint primary key references public.bookings(id) on delete cascade,
   code_hash text not null,
-  generated_by bigint not null references public.users(id) on delete cascade,
+  generated_by uuid not null references public.users(id) on delete cascade,
   expires_at bigint not null,
   attempts integer not null default 0 check (attempts >= 0 and attempts <= 20),
   used_at bigint,
