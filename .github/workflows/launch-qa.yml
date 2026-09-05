@@ -37,6 +37,28 @@ jobs:
       - name: Public image privacy audit
         run: npm run qa:uploads
 
+      - name: Canonical brand identity assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f public/brand/gorenthive-mark.png
+          test -f public/brand/gorenthive-wordmark.png
+          test -f public/css/brand-consistency.css
+          test -f public/js/brand-consistency.js
+          grep -q '/brand/gorenthive-mark.png' public/manifest.webmanifest
+          ! grep -q '/icons/icon-' public/manifest.webmanifest
+          grep -q '/css/brand-consistency.css' public/index.html
+          grep -q '/js/brand-consistency.js' public/index.html
+          grep -q 'https://gorenthive.online/brand/gorenthive-mark.png' public/index.html
+          grep -q "mark: '/brand/gorenthive-mark.png'" public/js/brand-consistency.js
+          grep -q "wordmark: '/brand/gorenthive-wordmark.png'" public/js/brand-consistency.js
+          grep -q "raw.startsWith('🐝')" public/js/brand-consistency.js
+          grep -q 'gorenthive-v15-brand-consistency' public/service-worker.js
+          grep -q '/css/brand-consistency.css' public/service-worker.js
+          grep -q '/js/brand-consistency.js' public/service-worker.js
+          ! grep -q 'makeIcon(' server/genicons.js
+          grep -q 'canonical brand assets verified' server/genicons.js
+
       - name: Launch regression assertions
         shell: bash
         run: |
