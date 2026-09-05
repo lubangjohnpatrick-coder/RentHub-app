@@ -27,7 +27,7 @@ jobs:
 
       - name: Syntax check
         run: npm run qa:syntax
-      - name: Asset integrity audit
+      - name: Asset integrity and production bundle audit
         run: npm run qa:assets
       - name: Production contract audit
         run: npm run qa:contracts
@@ -41,8 +41,10 @@ jobs:
         run: npm run qa:marketplace-pro
       - name: Motion experience regression tests
         run: npm run qa:motion
-      - name: Homepage v2 conversion and claim integrity tests
+      - name: Homepage conversion and claim integrity tests
         run: npm run qa:homepage
+      - name: Production architecture, performance and accessibility budgets
+        run: npm run qa:quality
 
       - name: Canonical brand identity assertions
         shell: bash
@@ -56,15 +58,15 @@ jobs:
           test -f public/js/brand-lockup-v2.js
           grep -q '/brand/gorenthive-mark.png' public/manifest.webmanifest
           ! grep -q '/icons/icon-' public/manifest.webmanifest
-          grep -q '/css/brand-consistency.css' public/index.html
-          grep -q '/js/brand-consistency.js' public/index.html
+          grep -q '/dist/app.css' public/index.html
+          grep -q '/dist/app.js' public/index.html
           grep -q 'https://gorenthive.online/brand/gorenthive-mark.png' public/index.html
           grep -q "mark: '/brand/gorenthive-mark.png'" public/js/brand-consistency.js
           grep -q "wordmark: '/brand/gorenthive-wordmark.png'" public/js/brand-consistency.js
           grep -q "raw.startsWith('🐝')" public/js/brand-consistency.js
           grep -Eq "const CACHE = 'gorenthive-v[0-9]+-[A-Za-z0-9_-]+'" public/service-worker.js
-          grep -q '/css/brand-consistency.css' public/service-worker.js
-          grep -q '/js/brand-consistency.js' public/service-worker.js
+          grep -q '/dist/app.css' public/service-worker.js
+          grep -q '/dist/app.js' public/service-worker.js
           grep -q '/brand/gorenthive-mark.png' public/js/brand-lockup-v2.js
           ! grep -q 'makeIcon(' server/genicons.js
           grep -q 'canonical brand assets verified' server/genicons.js
@@ -92,7 +94,6 @@ jobs:
           grep -q 'https://api.semaphore.co/api/v4/otp' server/verification-providers.js
           grep -q 'RESEND_API_KEY' server/verification-providers.js
           grep -q 'SEMAPHORE_API_KEY' server/verification-providers.js
-          grep -q '/js/verification-experience.js' public/index.html
           ! grep -q 'Demo only: your code is' public/js/verification-experience.js
           ! grep -q 'Demo only: token is' public/js/verification-experience.js
 
@@ -140,16 +141,19 @@ jobs:
           test -f public/css/marketplace-upgrades.css
           test -f public/css/motion.css
           test -f public/css/homepage-v2.css
+          test -f public/css/premium-finish.css
           test -f public/js/marketplace-upgrades.js
           test -f public/js/marketplace-pro.js
           test -f public/js/motion.js
           test -f public/js/homepage-v2.js
+          test -f public/js/premium-finish.js
           test -f server/marketplace-pro.js
           test -f server/messaging-pro.js
           test -f server/agreement-v3.js
           test -f server/condition-v3.js
           test -f server/motion-experience.test.js
           test -f server/homepage-v2.test.js
+          test -f server/production-quality.test.js
           grep -q "hydrateMarketplacePreview" public/js/ui-shell.js
           grep -q "REAL LISTING" public/css/experience.css
           grep -q "prefers-reduced-motion" public/css/marketplace-upgrades.css
@@ -158,14 +162,6 @@ jobs:
           grep -q "grh-owner-analytics" public/css/marketplace-upgrades.css
           grep -q "grhHeroRise" public/css/motion.css
           grep -q "grhQrScan" public/css/motion.css
-          grep -q "/js/marketplace-pro.js" public/index.html
-          grep -q "/js/marketplace-pro.js" public/service-worker.js
-          grep -q "/css/motion.css" public/index.html
-          grep -q "/css/motion.css" public/service-worker.js
-          grep -q "/js/motion.js" public/index.html
-          grep -q "/js/motion.js" public/service-worker.js
-          grep -q "/js/homepage-v2.js" public/index.html
-          grep -q "/js/homepage-v2.js" public/service-worker.js
           grep -q "IntersectionObserver" public/js/motion.js
           grep -q "MutationObserver" public/js/motion.js
           grep -q "showExploreMode" public/js/marketplace-pro.js
@@ -178,6 +174,8 @@ jobs:
           grep -q "coarseCoord" server/marketplace-pro.js
           grep -q "attachments" server/messaging-pro.js
           grep -q "read_at" server/messaging-pro.js
+          grep -q "premium-finish.css" server/build-assets.js
+          grep -q "premium-finish.js" server/build-assets.js
 
       - name: Security, privacy and readiness assertions
         shell: bash
