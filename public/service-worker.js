@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v9-production-hardening';
+const CACHE = 'gorenthive-v10-payment-hardening';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -14,6 +14,7 @@ const APP_SHELL = [
   '/js/app.js',
   '/js/location-hardening.js',
   '/js/launch-ready.js',
+  '/js/payment-experience.js',
   '/js/private-media.js',
   '/js/legal-acceptance.js',
   '/js/ui-shell.js',
