@@ -53,11 +53,34 @@ jobs:
           grep -q "mark: '/brand/gorenthive-mark.png'" public/js/brand-consistency.js
           grep -q "wordmark: '/brand/gorenthive-wordmark.png'" public/js/brand-consistency.js
           grep -q "raw.startsWith('🐝')" public/js/brand-consistency.js
-          grep -q 'gorenthive-v15-brand-consistency' public/service-worker.js
+          grep -q 'gorenthive-v16-account-verification' public/service-worker.js
           grep -q '/css/brand-consistency.css' public/service-worker.js
           grep -q '/js/brand-consistency.js' public/service-worker.js
           ! grep -q 'makeIcon(' server/genicons.js
           grep -q 'canonical brand assets verified' server/genicons.js
+
+      - name: Account verification assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f supabase/migrations/2026-09-05-account-verification-sync.sql
+          test -f public/js/verification-experience.js
+          grep -q "raw_user_meta_data ->> 'phone'" supabase/migrations/2026-09-05-account-verification-sync.sql
+          grep -q 'confirmation_sent_at is not null' supabase/migrations/2026-09-05-account-verification-sync.sql
+          grep -q 'on_auth_email_verification_sync' supabase/migrations/2026-09-05-account-verification-sync.sql
+          grep -q 'confirmation_sent_at' server/auth-service.js
+          grep -q 'req.authUser = authUser' server/auth-service.js
+          grep -q 'expires_at: createdAt + MOBILE_TTL' server/verification-v2.js
+          grep -q 'expires_at: createdAt + EMAIL_TTL' server/verification-v2.js
+          grep -q 'MAX_OTP_ATTEMPTS' server/verification-v2.js
+          grep -q 'sms_provider_required' server/verification-v2.js
+          grep -q 'email_provider_required' server/verification-v2.js
+          grep -q '/js/verification-experience.js' public/index.html
+          grep -q '/js/verification-experience.js' public/service-worker.js
+          grep -q 'Email verified successfully' public/js/verification-experience.js
+          grep -q 'Verification code sent' public/js/verification-experience.js
+          grep -q 'SMS_SENDER_WEBHOOK_URL' render.yaml
+          grep -q 'EMAIL_SENDER_WEBHOOK_URL' render.yaml
 
       - name: Launch regression assertions
         shell: bash
