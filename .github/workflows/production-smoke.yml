@@ -1,0 +1,72 @@
+name: Production Smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 2 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gorenthive-production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for production deployment and readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://gorenthive.online"
+          ready=0
+          for attempt in $(seq 1 20); do
+            code=$(curl -sS -o /tmp/readiness.json -w '%{http_code}' --max-time 20 "$BASE/health/readiness" || true)
+            if [ "$code" = "200" ] && grep -q '"readiness":"ready"' /tmp/readiness.json; then
+              ready=1
+              break
+            fi
+            echo "Production not ready yet (attempt $attempt/20, HTTP $code)."
+            sleep 30
+          done
+          if [ "$ready" != "1" ]; then
+            echo "Production readiness did not become healthy."
+            cat /tmp/readiness.json || true
+            exit 1
+          fi
+
+      - name: Verify canonical domain and security headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://gorenthive.online"
+          curl -fsS --max-time 20 -D /tmp/headers.txt -o /tmp/home.html "$BASE/"
+          grep -qi '^content-security-policy:' /tmp/headers.txt
+          grep -qi '^permissions-policy:' /tmp/headers.txt
+          grep -qi '^x-request-id:' /tmp/headers.txt
+          grep -qi '^strict-transport-security:' /tmp/headers.txt
+          grep -q 'GoRentHive' /tmp/home.html
+          grep -q 'Rent What You Need' /tmp/home.html
+          ! grep -qiE 'escrow protected|provider-agnostic payment[[:space:]]*&[[:space:]]*escrow|get it delivered|platform delivery' /tmp/home.html
+          redirect=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 20 https://www.gorenthive.online/)
+          echo "$redirect" | grep -q '^301 https://gorenthive.online/'
+
+      - name: Verify public assets and discovery endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://gorenthive.online"
+          curl -fsS --max-time 20 "$BASE/css/experience.css" | grep -q 'grh-market-preview'
+          curl -fsS --max-time 20 "$BASE/js/ui-shell.js" | grep -q 'hydrateMarketplacePreview'
+          curl -fsS --max-time 20 "$BASE/robots.txt" | grep -qi 'sitemap'
+          curl -fsS --max-time 20 "$BASE/sitemap.xml" | grep -q '<urlset'
+          curl -fsS --max-time 20 "$BASE/api/listings" > /tmp/listings.json
+          node -e "const x=require('/tmp/listings.json'); if(!Array.isArray(x)) process.exit(1)"
+
+      - name: Report readiness snapshot
+        run: curl -fsS --max-time 20 https://gorenthive.online/health/readiness

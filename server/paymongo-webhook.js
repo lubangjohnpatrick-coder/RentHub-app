@@ -6,15 +6,14 @@
 
 const { svcClient } = require('./supabase');
 const { verifyWebhook, webhookSecret } = require('./providers/paymongo');
-const ledger = require('./ledger');
-
-const now = () => Date.now();
 
 async function findPaymentByIntent(intentId) {
   if (!intentId) return null;
+  // Do not require pending here: the browser callback may race the webhook and
+  // still needs to discover an already-settled payment safely.
   const { data, error } = await svcClient()
-    .from('payments').select('*').filter('meta', 'like', '%' + intentId + '%')
-    .eq('status', 'pending').limit(1).maybeSingle();
+    .from('payments').select('*').filter('meta', 'like', '%' + String(intentId).replace(/[%_]/g, '') + '%')
+    .limit(1).maybeSingle();
   if (error || !data) return null;
   try { data.meta = JSON.parse(data.meta || '{}'); } catch (e) { data.meta = {}; }
   return data;
@@ -22,20 +21,19 @@ async function findPaymentByIntent(intentId) {
 
 async function settlePayment(payment, providerPaymentId, providerRef) {
   if (!payment) throw new Error('Payment is required');
-  if (payment.status === 'succeeded') return { status: 'already' };
-  if (payment.status !== 'pending') return { status: 'ignored' };
+  const ref = providerRef || providerPaymentId || '';
 
-  const meta = { ...(payment.meta || {}), provider_ref: providerRef || providerPaymentId };
-  await svcClient().from('payments').update({
-    status: 'succeeded', provider_ref: providerRef || providerPaymentId,
-    meta: JSON.stringify(meta), updated_at: now(),
-  }).eq('id', payment.id).eq('status', 'pending');
-
-  await ledger.addEntry({
-    userId: payment.user_id, type: 'topup', amount: payment.gross_amount,
-    meta: { payment_ref: payment.payment_ref, paymongo: true },
+  // settle_payment_credit locks the payment + user wallet and performs the
+  // pending->succeeded transition and wallet credit in a single transaction.
+  // This prevents webhook/browser-confirm races from double-crediting wallets.
+  const { data, error } = await svcClient().rpc('settle_payment_credit', {
+    p_payment_id: payment.id,
+    p_provider_ref: ref,
   });
-  return { status: 'succeeded' };
+  if (error) throw new Error('Payment settlement failed: ' + error.message);
+  const row = Array.isArray(data) ? data[0] : data;
+  const status = row && row.settlement_status ? row.settlement_status : 'unknown';
+  return { status, balance: row && row.new_balance != null ? row.new_balance : null };
 }
 
 async function handleEvent(event) {
@@ -44,7 +42,7 @@ async function handleEvent(event) {
   if (type === 'payment_intent.succeeded') {
     const intentId = resource.id;
     const payment = await findPaymentByIntent(intentId);
-    if (!payment) return { handled: false, reason: 'no matching pending payment' };
+    if (!payment) return { handled: false, reason: 'no matching payment' };
     const payId = resource.attributes && resource.attributes.payments && resource.attributes.payments[0] && resource.attributes.payments[0].id;
     return { handled: true, result: await settlePayment(payment, payId || null, intentId) };
   }
@@ -52,7 +50,7 @@ async function handleEvent(event) {
     const pm = resource.attributes || {};
     const intentId = pm.payment_intent && pm.payment_intent.id;
     const payment = await findPaymentByIntent(intentId);
-    if (!payment) return { handled: false, reason: 'no matching pending payment' };
+    if (!payment) return { handled: false, reason: 'no matching payment' };
     return { handled: true, result: await settlePayment(payment, resource.id, resource.id) };
   }
   return { handled: false, reason: 'unhandled event ' + type };
@@ -76,7 +74,7 @@ async function handleWebhook(req, res) {
     return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('PayMongo webhook error:', e.message);
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: 'Payment webhook processing failed' });
   }
 }
 

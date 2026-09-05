@@ -1,8 +1,8 @@
 'use strict';
 
-// Shared response-shape helpers (publicUser, listingRow, bookingFull)
-// so the server's service-role routes return the same shapes the old SQLite
-// routes produced — keeping the frontend contract stable.
+// Shared response-shape helpers. Public marketplace responses intentionally do
+// not expose exact listing coordinates, item serial numbers, or a user's private
+// street/barangay address. Distance is calculated server-side by verified-radius search.
 
 function publicUser(u) {
   if (!u) return null;
@@ -19,8 +19,6 @@ function publicUser(u) {
     email_verified: !!u.email_verified,
     identity_status: u.identity_status || 'none',
     identity_level: u.identity_level || 1,
-    address: u.address || '',
-    barangay: u.barangay || '',
     city: u.city || '',
     province: u.province || '',
     location_verified: u.location_status === 'verified',
@@ -65,17 +63,14 @@ async function listingRow({ row, images, category, owner, reviews }) {
     location_city: row.location_city || '',
     location_barangay: row.location_barangay || '',
     location_province: row.location_province || '',
-    latitude: row.latitude || null,
-    longitude: row.longitude || null,
     distance_km: row.distance_km != null ? row.distance_km : null,
-    delivery_available: !!row.delivery_available,
-    pickup_available: row.pickup_available !== false,
-    delivery_fee: row.delivery_fee || 0,
+    delivery_available: false,
+    pickup_available: true,
+    delivery_fee: 0,
     min_verification_level: row.min_verification_level || 2,
     rules: row.rules || '',
     condition: row.condition || '',
     accessories: row.accessories || '',
-    serial_number: row.serial_number,
     featured: !!row.featured,
     status: row.status,
     is_bundle: !!row.is_bundle,

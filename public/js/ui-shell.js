@@ -7,6 +7,7 @@
   const WORDMARK = '/brand/gorenthive-wordmark.png';
   const MARK = '/brand/gorenthive-mark.png';
   const escapeHtml = (value) => String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}`;
 
   const ICONS = {
     location:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.1 7-12A7 7 0 1 0 5 9c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>',
@@ -44,24 +45,54 @@
     return fallback.map(([i,n,q])=>`<a class="grh-category-card" href="/explore?q=${encodeURIComponent(q)}"><span class="grh-category-icon" aria-hidden="true">${i}</span><span>${n}</span></a>`).join('');
   }
 
-  function marketplacePreview(){
-    return `<div class="grh-market-preview" aria-label="Example of nearby rental discovery">
-      <div class="grh-market-topline"><div class="grh-market-brand"><img src="${MARK}" alt="" width="44" height="44"><div><span>DISCOVER NEARBY</span><strong>Popular rentals around you</strong></div></div><span class="grh-live-pill"><i></i> GPS ready</span></div>
-      <div class="grh-market-intro">Find what you need without buying it. Browse local items, compare options, and arrange pickup with the owner.</div>
-      <div class="grh-rental-preview-grid">
-        <a href="/explore?q=camera" class="grh-rental-preview-card"><div class="grh-preview-visual grh-preview-camera">${ICONS.camera}<span>CAMERA</span></div><div class="grh-preview-body"><strong>Camera & video gear</strong><span>Browse nearby equipment</span><div><b>Explore rentals</b><em>→</em></div></div></a>
-        <a href="/explore?q=tools" class="grh-rental-preview-card"><div class="grh-preview-visual grh-preview-tools">${ICONS.tools}<span>TOOLS</span></div><div class="grh-preview-body"><strong>Tools & equipment</strong><span>For projects big or small</span><div><b>Explore rentals</b><em>→</em></div></div></a>
-      </div>
+  function realListingCard(listing){
+    const img = Array.isArray(listing.images) && listing.images[0] ? listing.images[0] : '';
+    const title = escapeHtml(listing.title || 'Rental listing');
+    const city = escapeHtml(listing.location_city || listing.city || 'Nearby');
+    return `<a href="/listing/${encodeURIComponent(String(listing.id))}" class="grh-rental-preview-card grh-real-listing-card">
+      <div class="grh-preview-photo"><img src="${escapeHtml(img)}" alt="${title}" loading="lazy" decoding="async"></div>
+      <div class="grh-preview-body"><strong>${title}</strong><span>${city}</span><div><b class="grh-preview-price">${money(listing.price_per_day)} <span>/ day</span></b><em>→</em></div></div>
+    </a>`;
+  }
+
+  function marketplacePreview(listings = []){
+    const real = listings.filter(l => l && l.id && Array.isArray(l.images) && l.images[0]).slice(0,2);
+    const cards = real.length >= 2
+      ? real.map(realListingCard).join('')
+      : `<a href="/explore?q=camera" class="grh-rental-preview-card"><div class="grh-preview-visual grh-preview-camera">${ICONS.camera}<span>CAMERA</span></div><div class="grh-preview-body"><strong>Camera & video gear</strong><span>Browse nearby equipment</span><div><b>Explore rentals</b><em>→</em></div></div></a>
+         <a href="/explore?q=tools" class="grh-rental-preview-card"><div class="grh-preview-visual grh-preview-tools">${ICONS.tools}<span>TOOLS</span></div><div class="grh-preview-body"><strong>Tools & equipment</strong><span>For projects big or small</span><div><b>Explore rentals</b><em>→</em></div></div></a>`;
+    const heading = real.length >= 2 ? 'Fresh rentals from the marketplace' : 'Popular rentals around you';
+    const intro = real.length >= 2
+      ? 'Real GoRentHive listings are shown here automatically when owners publish photos—no fake inventory or sample pricing.'
+      : 'Find what you need without buying it. Browse local items, compare options, and arrange pickup with the owner.';
+    return `<div class="grh-market-preview" aria-label="Nearby rental discovery">
+      <div class="grh-market-topline"><div class="grh-market-brand"><img src="${MARK}" alt="" width="44" height="44"><div><span>DISCOVER NEARBY</span><strong>${heading}</strong></div></div><span class="grh-live-pill"><i></i> GPS ready</span></div>
+      <div class="grh-market-intro">${intro}</div>
+      <div class="grh-rental-preview-grid">${cards}</div>
       <div class="grh-market-categories"><span>Quick browse</span><a href="/explore?q=camping">${ICONS.outdoor} Camping</a><a href="/explore?q=electronics">${ICONS.tech} Electronics</a><a href="/categories">All categories →</a></div>
       <div class="grh-market-location"><span class="grh-showcase-dot"></span><div><strong>Location-protected discovery</strong><small>Search uses your verified radius without exposing exact listing coordinates.</small></div></div>
     </div>`;
+  }
+
+  async function hydrateMarketplacePreview(root){
+    const host = root.querySelector('.grh-market-preview-host');
+    if (!host || !window.API) return;
+    try {
+      const listings = await API.get('/listings');
+      if (!Array.isArray(listings)) return;
+      const photoListings = listings.filter(l => l && l.status !== 'inactive' && Array.isArray(l.images) && l.images[0]);
+      if (photoListings.length >= 2) host.innerHTML = marketplacePreview(photoListings);
+    } catch (_) {
+      // Homepage remains fully usable with category visual fallback.
+    }
   }
 
   Root.renderNav=function(){if(originalRenderNav)originalRenderNav();enhanceNavigation();};
   Root.viewHome=async function(){
     const categories=(this.state.categories||[]).slice(0,9);
     this.setMeta('GoRentHive | Rent What You Need. Earn From What You Own.','Find verified nearby rentals by radius in the Philippines, or earn from items you already own. Protected payments, agreements and condition documentation.','/');
-    this.$app.innerHTML=`<section class="grh-home-hero" aria-labelledby="grh-home-title"><div class="wrap grh-home-grid"><div class="grh-hero-copy"><div class="grh-hero-label"><span></span> Philippine peer-to-peer rentals</div><h1 id="grh-home-title">Rent What You Need.<br><span>Earn From What You Own.</span></h1><p class="grh-hero-sub">Find useful items near you with verified-radius search—or turn equipment and everyday assets you already own into extra income.</p><div class="grh-trust-row" aria-label="GoRentHive trust features"><div>${icon('location')}<b>Nearby Rentals</b><small>Verified GPS radius</small></div><div>${icon('shield')}<b>Verified Accounts</b><small>Safer local transactions</small></div><div>${icon('payment')}<b>Protected Payments</b><small>Documented money flow</small></div><div>${icon('agreement')}<b>Digital Agreements</b><small>Clear rental terms</small></div></div></div><div class="grh-hero-showcase">${marketplacePreview()}</div></div><div class="wrap grh-search-wrap"><div class="grh-search-panel" role="search" aria-label="Search GoRentHive rentals"><div class="grh-search-field">${icon('location')}<div><span class="label">Location</span><strong>Verified device GPS</strong></div></div><div class="grh-search-field">${icon('search')}<div><label for="launch-q">What do you need?</label><input id="launch-q" autocomplete="off" placeholder="Camera, tent, drill, projector…"></div></div><div class="grh-search-field">${icon('radius')}<div><label for="launch-radius">Search radius</label><select id="launch-radius"><option value="5">Within 5 km</option><option value="10" selected>Within 10 km</option><option value="25">Within 25 km</option><option value="50">Within 50 km</option></select></div></div><button id="launch-search-button" type="button" class="grh-search-button">${ICONS.search}<span>Search Rentals</span></button></div></div></section><div class="grh-home-main"><div class="wrap"><section class="grh-owner-strip" aria-labelledby="grh-owner-title"><div class="grh-owner-symbol" aria-hidden="true">₱</div><div><h2 id="grh-owner-title">Have useful items sitting idle?</h2><p>List them, set your own price and availability, and earn when someone rents them.</p></div><a class="grh-btn grh-btn-primary" href="/list">List Your Item <span aria-hidden="true">→</span></a><div class="grh-owner-sep" aria-hidden="true"></div><div class="grh-community-proof"><p><b>One account for renting and earning</b><br>Switch between renter and owner whenever you need.</p></div></section><section class="grh-section" aria-labelledby="grh-categories-title"><div class="grh-section-head"><h2 id="grh-categories-title">Popular Categories</h2><a href="/categories">View All Categories →</a></div><div class="grh-category-grid">${renderCategoryCards(categories)}</div></section><section class="grh-closing-banner" aria-label="GoRentHive marketplace message"><div><span class="grh-closing-eyebrow">BUILT FOR LOCAL COMMUNITIES</span><h2>A smarter way to <span>rent.</span><br>A brighter way to <span>earn.</span></h2></div><img src="${WORDMARK}" alt="GoRentHive" width="188" height="54"></section></div></div>`;
+    this.$app.innerHTML=`<section class="grh-home-hero" aria-labelledby="grh-home-title"><div class="wrap grh-home-grid"><div class="grh-hero-copy"><div class="grh-hero-label"><span></span> Philippine peer-to-peer rentals</div><h1 id="grh-home-title">Rent What You Need.<br><span>Earn From What You Own.</span></h1><p class="grh-hero-sub">Find useful items near you with verified-radius search—or turn equipment and everyday assets you already own into extra income.</p><div class="grh-trust-row" aria-label="GoRentHive trust features"><div>${icon('location')}<b>Nearby Rentals</b><small>Verified GPS radius</small></div><div>${icon('shield')}<b>Verified Accounts</b><small>Safer local transactions</small></div><div>${icon('payment')}<b>Protected Payments</b><small>Documented money flow</small></div><div>${icon('agreement')}<b>Digital Agreements</b><small>Clear rental terms</small></div></div></div><div class="grh-hero-showcase"><div class="grh-market-preview-host">${marketplacePreview()}</div></div></div><div class="wrap grh-search-wrap"><div class="grh-search-panel" role="search" aria-label="Search GoRentHive rentals"><div class="grh-search-field">${icon('location')}<div><span class="label">Location</span><strong>Verified device GPS</strong></div></div><div class="grh-search-field">${icon('search')}<div><label for="launch-q">What do you need?</label><input id="launch-q" autocomplete="off" placeholder="Camera, tent, drill, projector…"></div></div><div class="grh-search-field">${icon('radius')}<div><label for="launch-radius">Search radius</label><select id="launch-radius"><option value="5">Within 5 km</option><option value="10" selected>Within 10 km</option><option value="25">Within 25 km</option><option value="50">Within 50 km</option></select></div></div><button id="launch-search-button" type="button" class="grh-search-button">${ICONS.search}<span>Search Rentals</span></button></div></div></section><div class="grh-home-main"><div class="wrap"><section class="grh-owner-strip" aria-labelledby="grh-owner-title"><div class="grh-owner-symbol" aria-hidden="true">₱</div><div><h2 id="grh-owner-title">Have useful items sitting idle?</h2><p>List them, set your own price and availability, and earn when someone rents them.</p></div><a class="grh-btn grh-btn-primary" href="/list">List Your Item <span aria-hidden="true">→</span></a><div class="grh-owner-sep" aria-hidden="true"></div><div class="grh-community-proof"><p><b>One account for renting and earning</b><br>Switch between renter and owner whenever you need.</p></div></section><section class="grh-section" aria-labelledby="grh-categories-title"><div class="grh-section-head"><h2 id="grh-categories-title">Popular Categories</h2><a href="/categories">View All Categories →</a></div><div class="grh-category-grid">${renderCategoryCards(categories)}</div></section><section class="grh-closing-banner" aria-label="GoRentHive marketplace message"><div><span class="grh-closing-eyebrow">BUILT FOR LOCAL COMMUNITIES</span><h2>A smarter way to <span>rent.</span><br>A brighter way to <span>earn.</span></h2></div><img src="${WORDMARK}" alt="GoRentHive" width="188" height="54"></section></div></div>`;
     bindHomepageSearch(this.$app);
+    hydrateMarketplacePreview(this.$app);
   };
 })();
