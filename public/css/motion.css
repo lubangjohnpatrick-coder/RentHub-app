@@ -8,6 +8,7 @@
 }
 html{scroll-behavior:smooth}
 body{overflow-x:hidden}
+.grh-motion-paused *{animation-play-state:paused!important}
 
 /* Route/page entrance. Content stays visible if JS is disabled. */
 #app.grh-page-enter{animation:grhPageIn .42s var(--grh-ease-out) both}
@@ -48,7 +49,7 @@ body{overflow-x:hidden}
 .btn,.search-btn,.grh-view-switch button,.grh-quick-replies button,.grh-favorite-btn{position:relative;transition:transform var(--grh-motion-fast) var(--grh-ease-out),box-shadow var(--grh-motion-fast) ease,background-color var(--grh-motion-fast) ease,border-color var(--grh-motion-fast) ease,color var(--grh-motion-fast) ease}
 .btn:active,.search-btn:active,.grh-view-switch button:active,.grh-quick-replies button:active,.grh-favorite-btn:active{transform:scale(.965)}
 .btn-primary,.search-btn{overflow:hidden;isolation:isolate}
-.btn-primary:after,.search-btn:after{content:"";position:absolute;inset:-40% auto -40% -70%;width:42%;transform:skewX(-18deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.42),transparent);transition:left .62s var(--grh-ease-out);pointer-events:none;z-index:-1}
+.btn-primary:after,.search-btn:after{content:"";position:absolute;inset:-40% auto -40% -70%;width:42%;transform:skewX(-18deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.38),transparent);transition:left .62s var(--grh-ease-out);pointer-events:none}
 .btn-primary:hover:after,.search-btn:hover:after{left:135%}
 .grh-favorite-btn.grh-pop{animation:grhHeartPop .38s var(--grh-ease-spring)}
 @keyframes grhHeartPop{0%{transform:scale(1)}45%{transform:scale(1.28) rotate(-8deg)}100%{transform:scale(1)}}
