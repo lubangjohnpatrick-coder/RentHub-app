@@ -4,9 +4,10 @@
   if (!window.Root) return;
 
   const originalRenderNav = Root.renderNav ? Root.renderNav.bind(Root) : null;
+  const originalViewAuth = Root.viewAuth ? Root.viewAuth.bind(Root) : null;
   const WORDMARK = '/brand/gorenthive-wordmark.png';
   const MARK = '/brand/gorenthive-mark.png';
-  const escapeHtml = (value) => String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  const escapeHtml = (value) => String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#039;');
   const money = (value) => `₱${Number(value || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}`;
 
   const ICONS = {
@@ -32,6 +33,17 @@
     const nav=top.querySelector('.nav-link-pad');
     if(nav&&!nav.querySelector('.brand-nav-how')){const owner=[...nav.querySelectorAll('a')].find(a=>/for owners/i.test(a.textContent||''));if(owner){const how=document.createElement('a');how.className='brand-nav-how';how.href='/how-it-works';how.textContent='How It Works';owner.insertAdjacentElement('afterend',how);}}
     const signup=[...top.querySelectorAll('a')].find(a=>/sign up|create account/i.test(a.textContent||''));if(signup){signup.textContent='Create Account';signup.classList.add('brand-cta');}
+  }
+
+  function enhanceAuthBranding(){
+    const app=document.getElementById('app'); if(!app)return;
+    const card=app.querySelector('.form-card'); if(!card)return;
+    const brand=card.querySelector('.brand');
+    if(brand){
+      brand.classList.add('brand-refresh','grh-brand','grh-auth-brand');
+      brand.innerHTML=brandMarkup();
+      brand.setAttribute('aria-label','GoRentHive');
+    }
   }
 
   function bindHomepageSearch(root){
@@ -88,6 +100,7 @@
   }
 
   Root.renderNav=function(){if(originalRenderNav)originalRenderNav();enhanceNavigation();};
+  Root.viewAuth=function(mode){if(originalViewAuth)originalViewAuth(mode);enhanceAuthBranding();};
   Root.viewHome=async function(){
     const categories=(this.state.categories||[]).slice(0,9);
     this.setMeta('GoRentHive | Rent What You Need. Earn From What You Own.','Find verified nearby rentals by radius in the Philippines, or earn from items you already own. Protected payments, agreements and condition documentation.','/');
