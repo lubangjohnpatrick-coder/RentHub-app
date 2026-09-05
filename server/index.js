@@ -121,6 +121,7 @@ app.use(require('./readiness'));
 app.use('/api', require('./no-delivery'));
 app.use('/api', require('./location'));
 app.use('/api', require('./profile-location'));
+app.use('/api', require('./listings-v2'));
 app.use('/api', require('./booking-v2'));
 app.use('/api', require('./launch-hardening'));
 app.use('/api', require('./verification-v2'));
