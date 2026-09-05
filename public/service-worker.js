@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v12-auth-branding';
+const CACHE = 'gorenthive-v13-current-brand';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -22,8 +22,6 @@ const APP_SHELL = [
   '/brand/gorenthive-mark.png',
   '/brand/gorenthive-wordmark.png',
   '/manifest.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -81,7 +79,7 @@ self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   event.waitUntil(self.registration.showNotification(data.title || 'GoRentHive', {
     body: data.body || 'New update',
-    icon: '/icons/icon-192.png',
+    icon: '/brand/gorenthive-mark.png',
     data: { url: data.url || '/' },
   }));
 });
