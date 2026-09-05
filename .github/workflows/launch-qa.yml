@@ -37,6 +37,9 @@ jobs:
       - name: Public image privacy audit
         run: npm run qa:uploads
 
+      - name: Verification provider contract tests
+        run: npm run qa:verification
+
       - name: Canonical brand identity assertions
         shell: bash
         run: |
@@ -65,6 +68,9 @@ jobs:
           set -euo pipefail
           test -f supabase/migrations/2026-09-05-account-verification-sync.sql
           test -f public/js/verification-experience.js
+          test -f server/verification-providers.js
+          test -f server/verification-provider-test.js
+          test -f docs/VERIFICATION_PROVIDERS.md
           grep -q "raw_user_meta_data ->> 'phone'" supabase/migrations/2026-09-05-account-verification-sync.sql
           grep -q 'confirmation_sent_at is not null' supabase/migrations/2026-09-05-account-verification-sync.sql
           grep -q 'on_auth_email_verification_sync' supabase/migrations/2026-09-05-account-verification-sync.sql
@@ -73,14 +79,24 @@ jobs:
           grep -q 'expires_at: createdAt + MOBILE_TTL' server/verification-v2.js
           grep -q 'expires_at: createdAt + EMAIL_TTL' server/verification-v2.js
           grep -q 'MAX_OTP_ATTEMPTS' server/verification-v2.js
-          grep -q 'sms_provider_required' server/verification-v2.js
-          grep -q 'email_provider_required' server/verification-v2.js
+          grep -q 'sendVerificationSms' server/verification-v2.js
+          grep -q 'sendVerificationEmail' server/verification-v2.js
+          grep -q 'https://api.resend.com/emails' server/verification-providers.js
+          grep -q 'https://api.semaphore.co/api/v4/otp' server/verification-providers.js
+          grep -q 'RESEND_API_KEY' server/verification-providers.js
+          grep -q 'RESEND_FROM_EMAIL' server/verification-providers.js
+          grep -q 'SEMAPHORE_API_KEY' server/verification-providers.js
+          grep -q 'SEMAPHORE_SENDER_NAME' server/verification-providers.js
           grep -q '/js/verification-experience.js' public/index.html
           grep -q '/js/verification-experience.js' public/service-worker.js
           grep -q 'Email verified successfully' public/js/verification-experience.js
           grep -q 'Verification code sent' public/js/verification-experience.js
-          grep -q 'SMS_SENDER_WEBHOOK_URL' render.yaml
-          grep -q 'EMAIL_SENDER_WEBHOOK_URL' render.yaml
+          grep -q 'RESEND_API_KEY' render.yaml
+          grep -q 'RESEND_FROM_EMAIL' render.yaml
+          grep -q 'SEMAPHORE_API_KEY' render.yaml
+          grep -q 'SEMAPHORE_SENDER_NAME' render.yaml
+          ! grep -q 'SMS_SENDER_WEBHOOK_URL' render.yaml
+          ! grep -q 'EMAIL_SENDER_WEBHOOK_URL' render.yaml
 
       - name: Launch regression assertions
         shell: bash
@@ -159,6 +175,7 @@ jobs:
           grep -q "require('./payment-v2')" server/index.js
           grep -q "health/readiness" server/readiness.js
           grep -q "paymentLiveKey" server/readiness.js
+          grep -q "getVerificationProviderConfig" server/readiness.js
           grep -q "smsVerificationSender" server/readiness.js
           grep -q "emailVerificationSender" server/readiness.js
           grep -q "profile-photos" server/readiness.js

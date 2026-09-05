@@ -29,11 +29,11 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: SMS_SENDER_WEBHOOK_URL
+      - key: RESEND_API_KEY
         sync: false
-      - key: SMS_SENDER_WEBHOOK_SECRET
+      - key: RESEND_FROM_EMAIL
         sync: false
-      - key: EMAIL_SENDER_WEBHOOK_URL
+      - key: SEMAPHORE_API_KEY
         sync: false
-      - key: EMAIL_SENDER_WEBHOOK_SECRET
+      - key: SEMAPHORE_SENDER_NAME
         sync: false

@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { svcClient } = require('./supabase');
+const { getVerificationProviderConfig } = require('./verification-providers');
 
 const router = express.Router();
 const REQUIRED_BUCKETS = ['listing-photos', 'profile-photos', 'rental-evidence', 'identity-docs'];
@@ -12,12 +13,6 @@ let cachedAt = 0;
 function configured(value, placeholders = []) {
   const v = String(value || '').trim();
   return !!v && !placeholders.includes(v);
-}
-
-function httpsConfigured(value) {
-  const v = String(value || '').trim();
-  if (!v) return false;
-  try { return new URL(v).protocol === 'https:'; } catch (_) { return false; }
 }
 
 function strongSecret(value) {
@@ -73,8 +68,6 @@ async function financialRpcCheck(client) {
         p_booking_ref: 'readiness',
       }),
     ]);
-    // Both functions return harmless not-found/user-not-found results for these
-    // sentinel values; the only readiness concern is that the RPCs exist/run.
     return { ok: !settle.error && !reserve.error };
   } catch (_) {
     return { ok: false };
@@ -88,8 +81,7 @@ async function buildReadiness() {
     && configured(process.env.SUPABASE_SERVICE_ROLE_KEY, ['your-service-role-key'])
     && configured(process.env.SUPABASE_ANON_KEY, ['your-project-anon-key']);
   const appSecretConfigured = strongSecret(process.env.APP_SECRET);
-  const smsSenderConfigured = httpsConfigured(process.env.SMS_SENDER_WEBHOOK_URL);
-  const emailSenderConfigured = httpsConfigured(process.env.EMAIL_SENDER_WEBHOOK_URL);
+  const verification = getVerificationProviderConfig();
   const payments = paymentConfig();
 
   let database = { ok: false };
@@ -119,8 +111,8 @@ async function buildReadiness() {
     paymentPublicKey: payments.publicConfigured,
     paymentLiveKey: production ? payments.liveKey : (payments.secretConfigured && payments.publicConfigured),
     paymentWebhook: payments.webhookConfigured,
-    smsVerificationSender: production ? smsSenderConfigured : true,
-    emailVerificationSender: production ? emailSenderConfigured : true,
+    smsVerificationSender: production ? verification.sms.configured : true,
+    emailVerificationSender: production ? verification.email.configured : true,
   };
   const ready = Object.values(checks).every(Boolean);
   return {
@@ -128,6 +120,10 @@ async function buildReadiness() {
     service: 'GoRentHive',
     readiness: ready ? 'ready' : 'not_ready',
     checks,
+    verificationProviders: {
+      sms: verification.sms.provider,
+      email: verification.email.provider,
+    },
     storage: { required: storage.required, found: storage.found },
     paymentMode: payments.liveKey ? 'live-keys-configured' : ((payments.secretConfigured || payments.publicConfigured) ? 'non-live-or-partial-keys' : 'not-configured'),
     checkedAt: new Date().toISOString(),

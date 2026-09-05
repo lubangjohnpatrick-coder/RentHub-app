@@ -1,14 +1,19 @@
 'use strict';
 
 // Production-safe verification routes. Mounted before private.js.
-// In production no OTP/token is ever returned in the API response. Delivery is
-// delegated to configured HTTPS sender webhooks so provider credentials stay
-// server-side and GoRentHive fails closed when verification is unavailable.
+// Production delivery is direct to Resend (email) and Semaphore (SMS/OTP).
+// No verification secret, OTP, or email token is exposed to the browser in
+// production. Local development keeps demo-code behavior for offline testing.
 
 const express = require('express');
 const crypto = require('crypto');
 const { svcClient } = require('./supabase');
 const { requireAuth, loadUserById } = require('./auth-service');
+const {
+  VerificationProviderError,
+  sendVerificationEmail,
+  sendVerificationSms,
+} = require('./verification-providers');
 
 const router = express.Router();
 const now = () => Date.now();
@@ -21,13 +26,12 @@ const sentAt = new Map();
 function isProd() { return String(process.env.NODE_ENV || '').toLowerCase() === 'production'; }
 function hash(v) { return crypto.createHash('sha256').update(String(v)).digest('hex'); }
 function cooldownKey(userId, channel) { return `${userId}:${channel}`; }
-function checkCooldown(userId, channel) {
-  const key = cooldownKey(userId, channel);
-  const last = sentAt.get(key) || 0;
+function cooldownWait(userId, channel) {
+  const last = sentAt.get(cooldownKey(userId, channel)) || 0;
   if (now() - last < COOLDOWN) return Math.ceil((COOLDOWN - (now() - last)) / 1000);
-  sentAt.set(key, now());
   return 0;
 }
+function markSent(userId, channel) { sentAt.set(cooldownKey(userId, channel), now()); }
 
 function normalizePhone(value) {
   let phone = String(value || '').trim().replace(/[\s().-]/g, '');
@@ -37,19 +41,20 @@ function normalizePhone(value) {
   return phone;
 }
 
-async function sendWebhook(url, secret, payload) {
-  if (!url) return false;
-  const headers = { 'content-type': 'application/json' };
-  if (secret) headers.authorization = `Bearer ${secret}`;
-  const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
-  if (!response.ok) throw new Error(`Verification sender returned HTTP ${response.status}`);
-  return true;
+function providerError(res, error, fallback) {
+  if (error instanceof VerificationProviderError) {
+    return res.status(error.status || 502).json({ error: error.message, code: error.code });
+  }
+  return res.status(502).json({
+    error: fallback,
+    detail: isProd() ? undefined : (error && error.message ? error.message : String(error || 'unknown error')),
+  });
 }
 
 async function sendMobile(req, res) {
   try {
     if (req.user.mobile_verified) return res.json({ ok: true, alreadyVerified: true });
-    const wait = checkCooldown(req.user.id, 'mobile');
+    const wait = cooldownWait(req.user.id, 'mobile');
     if (wait) return res.status(429).json({ error: `Please wait ${wait}s before requesting another code.` });
 
     const phone = normalizePhone(req.user.phone);
@@ -67,18 +72,6 @@ async function sendMobile(req, res) {
     }
 
     const code = String(crypto.randomInt(100000, 1000000));
-    const sent = await sendWebhook(process.env.SMS_SENDER_WEBHOOK_URL, process.env.SMS_SENDER_WEBHOOK_SECRET, {
-      to: phone,
-      message: `Your GoRentHive verification code is ${code}. It expires in 10 minutes. Do not share this code.`,
-      purpose: 'gorenthive_mobile_verification',
-    });
-    if (!sent && isProd()) {
-      return res.status(503).json({
-        error: 'SMS verification is not configured yet. An SMS provider must be connected before mobile numbers can be verified.',
-        code: 'sms_provider_required',
-      });
-    }
-
     const createdAt = now();
     const { error: insertError } = await svcClient().from('otps').insert({
       user_id: req.user.id,
@@ -88,14 +81,21 @@ async function sendMobile(req, res) {
       max_attempts: MAX_OTP_ATTEMPTS,
       expires_at: createdAt + MOBILE_TTL,
       used: false,
-      meta: JSON.stringify({ destination: phone }),
+      meta: JSON.stringify({ destination: phone, provider: isProd() ? 'semaphore' : 'development' }),
       created_at: createdAt,
     });
     if (insertError) throw insertError;
 
-    return res.json(isProd() ? { ok: true } : { ok: true, demoCode: code });
+    if (isProd()) {
+      await sendVerificationSms({ to: phone, code, expiresMinutes: MOBILE_TTL / 60000 });
+    }
+    markSent(req.user.id, 'mobile');
+
+    return res.json(isProd()
+      ? { ok: true, provider: 'semaphore', destinationHint: phone.replace(/.(?=.{4})/g, '•') }
+      : { ok: true, demoCode: code });
   } catch (e) {
-    return res.status(502).json({ error: 'Could not send verification code. Please try again.', detail: isProd() ? undefined : e.message });
+    return providerError(res, e, 'Could not send verification code. Please try again.');
   }
 }
 
@@ -146,26 +146,13 @@ router.post('/auth/verify/mobile', requireAuth, async (req, res) => {
 async function sendEmail(req, res) {
   try {
     if (req.user.email_verified) return res.json({ ok: true, alreadyVerified: true });
-    const wait = checkCooldown(req.user.id, 'email');
+    const wait = cooldownWait(req.user.id, 'email');
     if (wait) return res.status(429).json({ error: `Please wait ${wait}s before requesting another verification email.` });
     const email = String(req.user.email || '').trim();
     if (!email) return res.status(400).json({ error: 'Add an email address to your account first.' });
 
     const token = crypto.randomBytes(24).toString('hex');
     const verifyUrl = `${String(process.env.PUBLIC_BASE_URL || 'https://gorenthive.online').replace(/\/$/, '')}/verify?token=${encodeURIComponent(token)}`;
-    const sent = await sendWebhook(process.env.EMAIL_SENDER_WEBHOOK_URL, process.env.EMAIL_SENDER_WEBHOOK_SECRET, {
-      to: email,
-      subject: 'Verify your GoRentHive email',
-      text: `Verify your GoRentHive email using this token: ${token}\n\nVerification link: ${verifyUrl}\n\nThis verification expires in 30 minutes.`,
-      purpose: 'gorenthive_email_verification',
-    });
-    if (!sent && isProd()) {
-      return res.status(503).json({
-        error: 'Email verification is not configured yet. An email sender must be connected before email addresses can be verified.',
-        code: 'email_provider_required',
-      });
-    }
-
     const createdAt = now();
     const { error: insertError } = await svcClient().from('email_verifications').insert({
       user_id: req.user.id,
@@ -176,9 +163,16 @@ async function sendEmail(req, res) {
     });
     if (insertError) throw insertError;
 
-    return res.json(isProd() ? { ok: true } : { ok: true, demoToken: token });
+    if (isProd()) {
+      await sendVerificationEmail({ to: email, verifyUrl, expiresMinutes: EMAIL_TTL / 60000 });
+    }
+    markSent(req.user.id, 'email');
+
+    return res.json(isProd()
+      ? { ok: true, provider: 'resend', destinationHint: email.replace(/^(.{1,2}).*(@.*)$/, '$1••••$2') }
+      : { ok: true, demoToken: token });
   } catch (e) {
-    return res.status(502).json({ error: 'Could not send verification email. Please try again.', detail: isProd() ? undefined : e.message });
+    return providerError(res, e, 'Could not send verification email. Please try again.');
   }
 }
 
