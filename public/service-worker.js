@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v10-payment-hardening';
+const CACHE = 'gorenthive-v11-mobile-auth';
 const APP_SHELL = [
   '/',
   '/index.html',
