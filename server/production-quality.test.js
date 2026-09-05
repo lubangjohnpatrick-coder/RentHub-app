@@ -13,6 +13,7 @@ const js = read('public/dist/app.js');
 const sw = read('public/service-worker.js');
 const render = read('render.yaml');
 const builder = read('server/build-assets.js');
+const server = read('server/index.js');
 
 // Production shell should be intentionally small and stable.
 assert((index.match(/<link rel="stylesheet"/g) || []).length <= 2, 'Too many production stylesheets');
@@ -21,10 +22,15 @@ assert(index.includes('/dist/app.css') && index.includes('/dist/app.js'), 'Produ
 assert(sw.includes('/dist/app.css') && sw.includes('/dist/app.js'), 'Production bundles are not precached');
 assert(render.includes('npm run build:assets'), 'Render must build production assets before start');
 
-// Generous budgets protect future regressions without forcing unsafe minification.
+// Source and transfer budgets protect future regressions.
 assert(size('public/dist/app.css') < 220 * 1024, 'CSS bundle exceeds 220 KB source budget');
 assert(size('public/dist/app.js') < 450 * 1024, 'JS bundle exceeds 450 KB source budget');
 assert(size('public/index.html') < 24 * 1024, 'HTML shell exceeds 24 KB source budget');
+for (const file of ['public/dist/app.css.br','public/dist/app.css.gz','public/dist/app.js.br','public/dist/app.js.gz']) assert(fs.existsSync(path.join(root,file)),`Missing compressed bundle: ${file}`);
+assert(size('public/dist/app.css.br') < size('public/dist/app.css') * .45, 'Brotli CSS transfer ratio regressed');
+assert(size('public/dist/app.js.br') < size('public/dist/app.js') * .45, 'Brotli JS transfer ratio regressed');
+assert(server.includes("res.setHeader('Content-Encoding', encoding)"), 'Server must negotiate precompressed assets');
+assert(server.includes("res.setHeader('Vary', 'Accept-Encoding')"), 'Compressed response must vary by Accept-Encoding');
 
 // Critical visual and accessibility contracts.
 for (const needle of [
@@ -57,4 +63,4 @@ assert(!/Lorem ipsum|★★★★★|testimonial-avatar/i.test(index + js), 'Fab
 assert(builder.includes('const CSS_SOURCES = [') && builder.includes('const JS_SOURCES = ['), 'Bundle source ownership must be explicit');
 assert(!builder.includes('readdirSync'), 'Builder must not silently bundle arbitrary directory contents');
 
-console.log(`Production quality budgets passed: CSS ${size('public/dist/app.css')} B, JS ${size('public/dist/app.js')} B, HTML ${size('public/index.html')} B.`);
+console.log(`Production quality budgets passed: CSS ${size('public/dist/app.css.br')} B br / ${size('public/dist/app.css')} B source; JS ${size('public/dist/app.js.br')} B br / ${size('public/dist/app.js')} B source; HTML ${size('public/index.html')} B.`);
