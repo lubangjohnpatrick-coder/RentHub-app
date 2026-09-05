@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const prerender = require('./prerender');
+const seo = require('./seo');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -128,6 +129,10 @@ app.use('/api', require('./financial'));
 app.use('/api', require('./private'));
 app.use('/api/upload', require('./upload'));
 
+// Dynamic sitemap is mounted before the static directory so active listings
+// are discoverable without exposing private account/location data.
+app.use(seo);
+
 const setUtf8 = (res) => {
   const ct = res.getHeader('Content-Type') || '';
   if (ct && !/charset/i.test(ct)) res.setHeader('Content-Type', ct + '; charset=utf-8');
@@ -148,29 +153,37 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 
 const PRIVATE_PATH = /^\/(admin|me|messages|wallet|booking|dashboard|favorites|verify|premium)(\/|$)/;
 
-app.get('*', (req, res) => {
-  const p = (req.path || '/').split('?')[0].replace(/\/+$/, '') || '/';
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  if (PRIVATE_PATH.test(p)) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+app.get('*', async (req, res, next) => {
+  try {
+    const p = (req.path || '/').split('?')[0].replace(/\/+$/, '') || '/';
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    if (PRIVATE_PATH.test(p)) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
 
-  const r = prerender.routeFor(p);
-  if (!r) return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  const url = prerender.CANON + p;
-  const ogImage = prerender.CANON + '/icons/icon-512.png';
-  const out = html
-    .replace(/<title>.*?<\/title>/, `<title>${r.title}</title>`)
-    .replace(/<meta name="description" content="[^"]*">/, `<meta name="description" content="${r.desc}">`)
-    .replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${url}">`)
-    .replace(/<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${url}">`)
-    .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${r.title}">`)
-    .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${r.desc}">`)
-    .replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${ogImage}">`)
-    .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}">`)
-    .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${r.desc}">`)
-    .replace(/(<main class="page" id="app"[^>]*>)/, `$1\n${r.noscript}`);
-  res.send(out);
+    let r = prerender.routeFor(p);
+    if (!r) r = await seo.listingRoute(p);
+    if (!r) return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+    if (r.noindex) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const url = prerender.CANON + p;
+    const ogImage = r.ogImage || prerender.CANON + '/icons/icon-512.png';
+    const out = html
+      .replace(/<title>.*?<\/title>/, `<title>${r.title}</title>`)
+      .replace(/<meta name="description" content="[^"]*">/, `<meta name="description" content="${r.desc}">`)
+      .replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${url}">`)
+      .replace(/<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${url}">`)
+      .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${r.title}">`)
+      .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${r.desc}">`)
+      .replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${ogImage}">`)
+      .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}">`)
+      .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${r.desc}">`)
+      .replace(/<meta name="twitter:image" content="[^"]*">/, `<meta name="twitter:image" content="${ogImage}">`)
+      .replace(/(<main class="page" id="app"[^>]*>)/, `$1\n${r.noscript || ''}`);
+    res.send(out);
+  } catch (e) {
+    next(e);
+  }
 });
 
 app.use((err, req, res, next) => {
