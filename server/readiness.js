@@ -27,12 +27,14 @@ function strongSecret(value) {
 
 function paymentConfig() {
   const secret = String(process.env.PAYMONGO_SECRET_KEY || '');
+  const publicKey = String(process.env.PAYMONGO_PUBLIC_KEY || '');
   const webhook = String(process.env.PAYMONGO_WEBHOOK_SECRET || '');
   return {
     gateway: String(process.env.GATEWAY || '').toLowerCase() === 'paymongo',
     secretConfigured: configured(secret, ['your-paymongo-secret-key']),
+    publicConfigured: configured(publicKey, ['your-paymongo-public-key']),
     webhookConfigured: configured(webhook, ['your-paymongo-webhook-secret']),
-    liveKey: /^sk_live_/i.test(secret),
+    liveKey: /^sk_live_/i.test(secret) && /^pk_live_/i.test(publicKey),
   };
 }
 
@@ -57,6 +59,28 @@ async function storageCheck(client) {
   }
 }
 
+async function financialRpcCheck(client) {
+  try {
+    const zeroUuid = '00000000-0000-0000-0000-000000000000';
+    const [settle, reserve] = await Promise.all([
+      client.rpc('settle_payment_credit', { p_payment_id: 0, p_provider_ref: 'readiness' }),
+      client.rpc('reserve_booking_funds', {
+        p_booking_id: 0,
+        p_renter_id: zeroUuid,
+        p_owner_id: zeroUuid,
+        p_rental_amount: 0,
+        p_deposit_amount: 0,
+        p_booking_ref: 'readiness',
+      }),
+    ]);
+    // Both functions return harmless not-found/user-not-found results for these
+    // sentinel values; the only readiness concern is that the RPCs exist/run.
+    return { ok: !settle.error && !reserve.error };
+  } catch (_) {
+    return { ok: false };
+  }
+}
+
 async function buildReadiness() {
   const production = process.env.NODE_ENV === 'production';
   const canonical = String(process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '') === 'https://gorenthive.online';
@@ -70,10 +94,13 @@ async function buildReadiness() {
 
   let database = { ok: false };
   let storage = { ok: false, required: REQUIRED_BUCKETS.length, found: 0 };
+  let financialRpcs = { ok: false };
   if (supabaseConfigured) {
     try {
       const client = svcClient();
-      [database, storage] = await Promise.all([databaseCheck(client), storageCheck(client)]);
+      [database, storage, financialRpcs] = await Promise.all([
+        databaseCheck(client), storageCheck(client), financialRpcCheck(client),
+      ]);
     } catch (_) {
       // Keep failed status. Never expose underlying secret/config errors here.
     }
@@ -85,10 +112,12 @@ async function buildReadiness() {
     supabase: supabaseConfigured,
     database: database.ok,
     storage: storage.ok,
+    financialRpcs: financialRpcs.ok,
     appSecret: appSecretConfigured,
     paymentGateway: payments.gateway,
     paymentSecret: payments.secretConfigured,
-    paymentLiveKey: production ? payments.liveKey : payments.secretConfigured,
+    paymentPublicKey: payments.publicConfigured,
+    paymentLiveKey: production ? payments.liveKey : (payments.secretConfigured && payments.publicConfigured),
     paymentWebhook: payments.webhookConfigured,
     smsVerificationSender: production ? smsSenderConfigured : true,
     emailVerificationSender: production ? emailSenderConfigured : true,
@@ -100,7 +129,7 @@ async function buildReadiness() {
     readiness: ready ? 'ready' : 'not_ready',
     checks,
     storage: { required: storage.required, found: storage.found },
-    paymentMode: payments.liveKey ? 'live-key-configured' : (payments.secretConfigured ? 'non-live-key-configured' : 'not-configured'),
+    paymentMode: payments.liveKey ? 'live-keys-configured' : ((payments.secretConfigured || payments.publicConfigured) ? 'non-live-or-partial-keys' : 'not-configured'),
     checkedAt: new Date().toISOString(),
   };
 }
