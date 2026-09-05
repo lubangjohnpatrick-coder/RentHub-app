@@ -1,8 +1,8 @@
 'use strict';
 
-// Shared response-shape helpers (publicUser, listingRow, bookingFull)
-// so the server's service-role routes return the same shapes the old SQLite
-// routes produced — keeping the frontend contract stable.
+// Shared response-shape helpers. Public marketplace responses intentionally do
+// not expose exact listing coordinates. Distance is calculated server-side by
+// the verified-radius endpoint and only the rounded distance is returned.
 
 function publicUser(u) {
   if (!u) return null;
@@ -65,12 +65,13 @@ async function listingRow({ row, images, category, owner, reviews }) {
     location_city: row.location_city || '',
     location_barangay: row.location_barangay || '',
     location_province: row.location_province || '',
-    latitude: row.latitude || null,
-    longitude: row.longitude || null,
+    // latitude/longitude deliberately omitted from all public listing shapes.
     distance_km: row.distance_km != null ? row.distance_km : null,
-    delivery_available: !!row.delivery_available,
-    pickup_available: row.pickup_available !== false,
-    delivery_fee: row.delivery_fee || 0,
+    // GoRentHive does not operate a delivery service. Old DB columns can remain
+    // for migration compatibility but are never advertised as platform delivery.
+    delivery_available: false,
+    pickup_available: true,
+    delivery_fee: 0,
     min_verification_level: row.min_verification_level || 2,
     rules: row.rules || '',
     condition: row.condition || '',
