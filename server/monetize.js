@@ -1,10 +1,11 @@
 'use strict';
 
 // Monetization rules (GoRentHive):
-//  - Commission: 8% of rental fee, min 20 (see settings.computePlatformFee)
-//  - Premium membership: 1499/yr -> unlimited listings + seller dashboard
-//  - Free users: 15 active listings/month; extra = 10/listing (one-time)
-//  - Featured boost: 49 / 30 days, prioritised in search
+//  - Commission: 8% of the completed rental amount (see settings.computePlatformFee)
+//  - Free users: first 5 active listings; extra listings use the configured overage fee
+//  - Legacy Premium billing remains only for backwards compatibility while the
+//    new Pro (₱299/mo) and Business (₱999/mo) plans are labelled Coming Soon.
+//  - Featured boost: configured one-time fee / duration, prioritised in search.
 // Server only — service-role via Supabase. All charges debit the wallet ledger.
 
 const { svcClient } = require('./supabase');
@@ -24,7 +25,6 @@ async function isPremium(user) {
   return !!(user && user.premium_until && user.premium_until > NOW());
 }
 
-// Count active listings posted by a user in the current calendar month.
 async function countListingsThisMonth(userId) {
   const start = new Date();
   start.setUTCDate(1);
@@ -38,8 +38,6 @@ async function countListingsThisMonth(userId) {
   return count || 0;
 }
 
-// Enforce free-plan cap on listing creation. Returns { allowed, over, fee }
-// If over the cap, the extra listings incur a one-time 10 each charged to wallet.
 async function enforceListingCap(user, newCount = 1) {
   if (await isPremium(user)) return { allowed: true, over: 0, fee: 0 };
   const limit = await getFreeListingLimit();
@@ -66,7 +64,9 @@ async function chargeListingOverage(user, over) {
   await revenue.addIncome('extra_listing', fee);
 }
 
-// Buy / renew premium membership (charge wallet, extend premium_until by 365 days).
+// Legacy purchase path retained for existing premium accounts only. The public
+// UI does not sell this product while the new Pro/Business plan contracts are
+// marked Coming Soon.
 async function purchasePremium(user) {
   const fee = await getPremiumFee();
   const bal = await getUserBalance(user.id);
@@ -81,7 +81,6 @@ async function purchasePremium(user) {
   return { ok: true, premium_until, fee };
 }
 
-// Boost a listing to featured for 30 days (charge wallet, set featured flags, log).
 async function boostListing(user, listingId) {
   const { data: l, error } = await svcClient().from('listings').select('owner_id,id').eq('id', listingId).single();
   if (error || !l) return { ok: false, error: 'Listing not found' };
@@ -105,7 +104,6 @@ async function boostListing(user, listingId) {
   return { ok: true, fee, ends_at: endsAt };
 }
 
-// Seller dashboard: listings, sales (completed bookings), gross income, business summary.
 async function sellerDashboard(user) {
   const { data: listings, error: lErr } = await svcClient()
     .from('listings').select('*').eq('owner_id', user.id).order('created_at', { ascending: false });
