@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v21-aesthetic-polish';
+const CACHE = 'gorenthive-v20-motion-experience';
 const APP_SHELL = [
   '/', '/index.html',
   '/css/styles.css', '/css/launch-ready.css', '/css/app-theme.css', '/css/profile-experience.css', '/css/experience.css', '/css/brand-consistency.css', '/css/marketplace-upgrades.css', '/css/motion.css',
