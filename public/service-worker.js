@@ -1,9 +1,9 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v21-homepage-v2';
+const CACHE = 'gorenthive-v22-homepage-v2-final';
 const APP_SHELL = [
   '/', '/index.html',
-  '/css/styles.css', '/css/launch-ready.css', '/css/app-theme.css', '/css/profile-experience.css', '/css/experience.css', '/css/brand-consistency.css', '/css/marketplace-upgrades.css', '/css/motion.css', '/css/homepage-v2.css', '/css/homepage-v2-fixes.css',
-  '/js/vendor/supabase.js', '/js/supabase-config.js', '/js/api.js', '/js/app.js', '/js/location-hardening.js', '/js/launch-ready.js', '/js/payment-experience.js', '/js/private-media.js', '/js/legal-acceptance.js', '/js/ui-shell.js', '/js/profile-experience.js', '/js/verification-experience.js', '/js/brand-consistency.js', '/js/marketplace-upgrades.js', '/js/marketplace-pro.js', '/js/motion.js', '/js/aesthetic-polish.js', '/js/homepage-v2.js', '/js/homepage-v2-fixes.js', '/js/plan-guard.js',
+  '/css/styles.css', '/css/launch-ready.css', '/css/app-theme.css', '/css/profile-experience.css', '/css/experience.css', '/css/brand-consistency.css', '/css/marketplace-upgrades.css', '/css/motion.css', '/css/homepage-v2.css', '/css/homepage-v2-fixes.css', '/css/brand-lockup-v2.css',
+  '/js/vendor/supabase.js', '/js/supabase-config.js', '/js/api.js', '/js/app.js', '/js/location-hardening.js', '/js/launch-ready.js', '/js/payment-experience.js', '/js/private-media.js', '/js/legal-acceptance.js', '/js/ui-shell.js', '/js/profile-experience.js', '/js/verification-experience.js', '/js/brand-consistency.js', '/js/marketplace-upgrades.js', '/js/marketplace-pro.js', '/js/motion.js', '/js/aesthetic-polish.js', '/js/homepage-v2.js', '/js/homepage-v2-fixes.js', '/js/plan-guard.js', '/js/policy-v2.js', '/js/brand-lockup-v2.js',
   '/brand/gorenthive-mark.png', '/brand/gorenthive-wordmark.png', '/manifest.webmanifest',
 ];
 self.addEventListener('install',(event)=>{event.waitUntil(caches.open(CACHE).then((cache)=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting()));});
