@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v13-current-brand';
+const CACHE = 'gorenthive-v14-profile-avatar';
 const APP_SHELL = [
   '/',
   '/index.html',
