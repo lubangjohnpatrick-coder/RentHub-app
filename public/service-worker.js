@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v16-account-verification';
+const CACHE = 'gorenthive-v17-verification-otp-fix';
 const APP_SHELL = [
   '/',
   '/index.html',

@@ -56,7 +56,7 @@ jobs:
           grep -q "mark: '/brand/gorenthive-mark.png'" public/js/brand-consistency.js
           grep -q "wordmark: '/brand/gorenthive-wordmark.png'" public/js/brand-consistency.js
           grep -q "raw.startsWith('🐝')" public/js/brand-consistency.js
-          grep -q 'gorenthive-v16-account-verification' public/service-worker.js
+          grep -q 'gorenthive-v17-verification-otp-fix' public/service-worker.js
           grep -q '/css/brand-consistency.css' public/service-worker.js
           grep -q '/js/brand-consistency.js' public/service-worker.js
           ! grep -q 'makeIcon(' server/genicons.js
@@ -90,7 +90,10 @@ jobs:
           grep -q '/js/verification-experience.js' public/index.html
           grep -q '/js/verification-experience.js' public/service-worker.js
           grep -q 'Email verified successfully' public/js/verification-experience.js
-          grep -q 'Verification code sent' public/js/verification-experience.js
+          grep -q 'Code sent to' public/js/verification-experience.js
+          grep -q 'otp-status' public/js/verification-experience.js
+          ! grep -q 'Demo only: your code is' public/js/verification-experience.js
+          ! grep -q 'Demo only: token is' public/js/verification-experience.js
           grep -q 'RESEND_API_KEY' render.yaml
           grep -q 'RESEND_FROM_EMAIL' render.yaml
           grep -q 'SEMAPHORE_API_KEY' render.yaml
