@@ -19,10 +19,6 @@ const listingsV2 = read('server/listings-v2.js');
 const seo = read('server/seo.js');
 const upload = read('server/upload.js');
 
-// The large legacy app.js remains a compatibility core for now. Public-facing
-// views are owned by ui-shell.js / launch-ready.js, and launch-ready.js contains
-// an explicit compatibility wording sanitizer for old strings that may still
-// exist inside the legacy core. Test the effective layers, not dead source text.
 const effectivePublicText = `${index}\n${ui}`.toLowerCase();
 const bannedEffectiveClaims = [
   'escrow protected',
@@ -31,9 +27,7 @@ const bannedEffectiveClaims = [
   'get it delivered',
   'platform delivery',
 ];
-for (const phrase of bannedEffectiveClaims) {
-  assert(!effectivePublicText.includes(phrase), `Banned/stale effective public claim found: ${phrase}`);
-}
+for (const phrase of bannedEffectiveClaims) assert(!effectivePublicText.includes(phrase), `Banned/stale effective public claim found: ${phrase}`);
 assert(launch.includes("replaceText(n, 'Escrow protected', 'Protected payments')"), 'Legacy escrow wording must be sanitized at runtime');
 assert(launch.includes("replaceText(n, 'Provider-agnostic payment & escrow for deposits.', 'Protected payments and refundable deposits.')"), 'Legacy payment/escrow wording must be sanitized at runtime');
 assert(launch.includes("replaceText(n, 'Pick up or get it delivered. Record condition.', 'Pick up or meet the owner. Record condition.')"), 'Legacy delivery wording must be sanitized at runtime');
@@ -63,13 +57,14 @@ assert(readiness.includes('profile-photos') && readiness.includes('rental-eviden
 
 assert(!publicShape.includes('latitude: row.latitude') && !publicShape.includes('longitude: row.longitude'), 'Public listing responses must not expose exact coordinates');
 assert(publicShape.includes('delivery_available: false') && publicShape.includes('delivery_fee: 0'), 'Public listing shape must not advertise platform delivery');
-assert(listingsV2.includes(".eq('status', 'active')"), 'Public listing discovery must return active inventory only');
-assert(listingsV2.includes("query = query.eq('category_id', category)"), 'Category must be an AND filter');
-assert(listingsV2.includes("query = query.ilike('location_city'"), 'City must be an AND filter');
+assert(/\.eq\(\s*['"]status['"]\s*,\s*['"]active['"]\s*\)/.test(listingsV2), 'Public listing discovery must return active inventory only');
+assert(/query\s*=\s*query\.eq\(\s*['"]category_id['"]\s*,\s*category\s*\)/.test(listingsV2), 'Category must be an AND filter');
+assert(/query\s*=\s*query\.ilike\(\s*['"]location_city['"]/.test(listingsV2), 'City must be an AND filter');
 assert(listingsV2.includes('title.ilike') && listingsV2.includes('description.ilike'), 'Keyword search must only OR title/description fields');
+assert(listingsV2.includes('listing_pricing') && listingsV2.includes('pricingShape'), 'Public listing discovery must expose safe flexible-pricing summaries');
 
 assert(seo.includes("router.get('/sitemap.xml'"), 'Dynamic sitemap must exist');
-assert(seo.includes(".eq('status', 'active')"), 'Dynamic sitemap must only include active listings');
+assert(/\.eq\(\s*['"]status['"]\s*,\s*['"]active['"]\s*\)/.test(seo), 'Dynamic sitemap must only include active listings');
 assert(seo.includes('listingRoute'), 'Listing-specific metadata renderer must exist');
 assert(seo.includes('ogImage'), 'Listing social metadata should use real listing photography when present');
 
