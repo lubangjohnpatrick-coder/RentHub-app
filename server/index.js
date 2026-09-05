@@ -111,6 +111,9 @@ app.use(require('./readiness'));
 
 // Order matters. Hardened routes MUST run before older compatibility routes.
 app.use('/api', require('./no-delivery'));
+app.use('/api', require('./vehicle-compliance'));
+app.use('/api', require('./availability'));
+app.use('/api', require('./handover-code'));
 app.use('/api', require('./location'));
 app.use('/api', require('./profile-location'));
 app.use('/api', require('./listings-v2'));
