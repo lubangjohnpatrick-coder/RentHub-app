@@ -152,5 +152,21 @@ alter table public.bookings add column if not exists pickup_handover_confirmed_a
 alter table public.bookings add column if not exists return_handover_confirmed_at bigint;
 
 -- Operational/private tables are server-controlled. Public marketplace clients
--- receive intentionally minimized shapes from REST endpoints.
-foreach_table_placeholder_do_not_use text;
+-- receive intentionally minimized shapes from scoped REST endpoints.
+alter table public.listing_pricing enable row level security;
+alter table public.listing_availability_blocks enable row level security;
+alter table public.saved_searches enable row level security;
+alter table public.notification_preferences enable row level security;
+alter table public.business_verifications enable row level security;
+alter table public.vehicle_rental_terms enable row level security;
+alter table public.vehicle_incidents enable row level security;
+alter table public.booking_handover_tokens enable row level security;
+
+revoke all on public.listing_pricing from anon, authenticated;
+revoke all on public.listing_availability_blocks from anon, authenticated;
+revoke all on public.saved_searches from anon, authenticated;
+revoke all on public.notification_preferences from anon, authenticated;
+revoke all on public.business_verifications from anon, authenticated;
+revoke all on public.vehicle_rental_terms from anon, authenticated;
+revoke all on public.vehicle_incidents from anon, authenticated;
+revoke all on public.booking_handover_tokens from anon, authenticated;
