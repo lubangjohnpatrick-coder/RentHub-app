@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v14-profile-avatar';
+const CACHE = 'gorenthive-v15-brand-consistency';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const APP_SHELL = [
   '/css/app-theme.css',
   '/css/profile-experience.css',
   '/css/experience.css',
+  '/css/brand-consistency.css',
   '/js/vendor/supabase.js',
   '/js/supabase-config.js',
   '/js/api.js',
@@ -19,6 +20,7 @@ const APP_SHELL = [
   '/js/legal-acceptance.js',
   '/js/ui-shell.js',
   '/js/profile-experience.js',
+  '/js/brand-consistency.js',
   '/brand/gorenthive-mark.png',
   '/brand/gorenthive-wordmark.png',
   '/manifest.webmanifest',
