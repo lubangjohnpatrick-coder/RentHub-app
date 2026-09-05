@@ -126,6 +126,7 @@ app.use('/api', require('./booking-v2'));
 app.use('/api', require('./launch-hardening'));
 app.use('/api', require('./verification-v2'));
 app.use('/api', require('./media'));
+app.use('/api', require('./payment-v2'));
 app.use('/api', require('./financial'));
 app.use('/api', require('./private'));
 app.use('/api/upload', require('./upload'));
@@ -177,7 +178,7 @@ app.get('*', async (req, res, next) => {
       .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${r.title}">`)
       .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${r.desc}">`)
       .replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${ogImage}">`)
-      .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}">`)
+      .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}</title>`)
       .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${r.desc}">`)
       .replace(/<meta name="twitter:image" content="[^"]*">/, `<meta name="twitter:image" content="${ogImage}">`)
       .replace(/(<main class="page" id="app"[^>]*>)/, `$1\n${r.noscript || ''}`);
