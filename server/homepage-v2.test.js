@@ -1,12 +1,12 @@
 'use strict';
 const fs=require('fs');const path=require('path');
 const root=path.resolve(__dirname,'..');const read=(p)=>fs.readFileSync(path.join(root,p),'utf8');const assert=(c,m)=>{if(!c)throw new Error(m);};
-const home=read('public/js/homepage-v2.js'),fix=read('public/js/homepage-v2-fixes.js'),css=read('public/css/homepage-v2.css'),motion=read('public/css/motion.css'),index=read('public/index.html'),settings=read('server/settings.js'),monetize=read('server/monetize.js'),serverIndex=read('server/index.js'),guard=read('server/plan-release.js'),sw=read('public/service-worker.js'),migration=read('supabase/migrations/2026-09-05-homepage-plan-alignment.sql'),policy=read('public/js/policy-v2.js'),brand=read('public/js/brand-lockup-v2.js');
+const home=read('public/js/homepage-v2.js'),fix=read('public/js/homepage-v2-fixes.js'),premium=read('public/js/premium-finish.js'),css=read('public/css/homepage-v2.css')+read('public/css/premium-finish.css'),index=read('public/index.html'),settings=read('server/settings.js'),monetize=read('server/monetize.js'),serverIndex=read('server/index.js'),guard=read('server/plan-release.js'),sw=read('public/service-worker.js'),migration=read('supabase/migrations/2026-09-05-homepage-plan-alignment.sql'),policy=read('public/js/policy-v2.js'),brand=read('public/js/brand-lockup-v2.js'),builder=read('server/build-assets.js');
 for(const needle of ['Rent What You Need.','Earn From What You Own.','Popular Rentals Near You','May gamit kang nakatambak?','Every rental documented—from booking to return.','Owner pickup location','Agreed meetup','₱299','₱999','COMING SOON','Be one of the first GoRentHive owners.'])assert(home.includes(needle),`homepage missing ${needle}`);
 for(const needle of ['grh-home-search-v2','grh-category-grid-v2','grh-owner-story-v2','grh-pricing-v2','prefers-reduced-motion'])assert(css.includes(needle),`homepage CSS missing ${needle}`);
-for(const imported of ["@import url('/css/homepage-v2.css')","@import url('/css/homepage-v2-fixes.css')","@import url('/css/brand-lockup-v2.css')"])assert(motion.includes(imported),`motion bundle missing ${imported}`);
 assert(fix.includes("API.get('/listings?sort=popular&limit=8')"),'hero/popular inventory must hydrate from real listing API');
 assert(fix.includes('no sample products or fabricated prices'),'empty hero must explicitly avoid fake inventory');
+assert(premium.includes('scrubSampleStage'),'sample hero cards must be scrubbed before they can be shown');
 assert(!home.includes('testimonial-avatar')&&!home.includes('★★★★★'),'homepage must not fabricate testimonials');
 assert(home.includes('GoRentHive records the agreed method but is not the carrier or delivery provider'),'delivery disclaimer missing');
 assert(home.includes('Paid plans remain unavailable')&&guard.includes('plan_not_released'),'paid-plan UI/API guard missing');
@@ -15,10 +15,11 @@ assert(settings.includes("getSetting('free_listing_limit', '5')"),'free listing 
 assert(migration.includes("'free_listing_limit', '5'"),'database free listing alignment migration missing');
 assert(monetize.includes(".eq('status', 'active')"),'free-plan allowance must count active listings');
 assert(monetize.includes('afterOver - beforeOver'),'over-cap fee must be incremental, not re-charge prior extras');
-for(const asset of ['/js/homepage-v2.js','/js/homepage-v2-fixes.js','/js/plan-guard.js','/js/policy-v2.js','/js/brand-lockup-v2.js']){assert(index.includes(asset),`index missing ${asset}`);assert(sw.includes(asset),`service worker missing ${asset}`);}
-for(const asset of ['/css/homepage-v2.css','/css/homepage-v2-fixes.css','/css/brand-lockup-v2.css'])assert(sw.includes(asset),`service worker missing ${asset}`);
+for(const source of ['css/homepage-v2.css','css/homepage-v2-fixes.css','css/premium-finish.css','js/homepage-v2.js','js/homepage-v2-fixes.js','js/plan-guard.js','js/policy-v2.js','js/brand-lockup-v2.js','js/premium-finish.js'])assert(builder.includes(`'${source}'`),`production bundle missing source ${source}`);
+assert(index.includes('/dist/app.css')&&index.includes('/dist/app.js'),'production shell must use bundled homepage assets');
+assert(sw.includes('/dist/app.css')&&sw.includes('/dist/app.js'),'service worker must cache bundled homepage assets');
 assert(policy.includes("type!=='dispute'")&&policy.includes('GoRentHive Dispute Policy'),'dispute policy route missing');
 assert(brand.includes('gorenthive-mark.png')&&!index.includes('footer-brand" href="/" aria-label="GoRentHive home"><img class="brand-refresh-logo'),'footer should use transparent mark + live text instead of white wordmark image');
 assert(index.includes('GoRentHive facilitates peer-to-peer rentals. It does not own listed inventory and does not operate a delivery service.'),'footer marketplace disclosure missing');
 assert(index.includes('FAQPage')&&index.includes('WebSite'),'structured data missing');
-console.log('Homepage v2 conversion/claim-integrity regression tests passed.');
+console.log('Homepage conversion/claim-integrity regression tests passed.');
