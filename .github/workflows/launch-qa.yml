@@ -34,6 +34,9 @@ jobs:
       - name: Production contract audit
         run: npm run qa:contracts
 
+      - name: Public image privacy audit
+        run: npm run qa:uploads
+
       - name: Launch regression assertions
         shell: bash
         run: |
@@ -80,19 +83,31 @@ jobs:
           grep -q "/css/experience.css" public/index.html
           grep -q "Confirm pin & save" public/js/profile-experience.js
 
-      - name: Security and readiness assertions
+      - name: Security, media privacy and readiness assertions
         shell: bash
         run: |
           set -euo pipefail
           test -f server/readiness.js
           test -f server/request-guard.js
+          test -f server/seo.js
+          test -f server/upload-sanitize-test.js
           grep -q "contentSecurityPolicy" server/index.js
+          grep -q "scriptSrcAttr" server/index.js
           grep -q "Permissions-Policy" server/index.js
           grep -q "X-Request-ID" server/index.js
           grep -q "request-guard" server/index.js
+          grep -q "require('./seo')" server/index.js
           grep -q "health/readiness" server/readiness.js
+          grep -q "paymentLiveKey" server/readiness.js
+          grep -q "smsVerificationSender" server/readiness.js
+          grep -q "emailVerificationSender" server/readiness.js
           grep -q "profile-photos" server/readiness.js
           grep -q "rental-evidence" server/readiness.js
+          grep -q "stripJpegMetadata" server/upload.js
+          grep -q "stripPngMetadata" server/upload.js
+          grep -q "stripWebpMetadata" server/upload.js
+          grep -q "listingRoute" server/seo.js
+          grep -q "listing_images" server/seo.js
           ! grep -qiE "escrow protected|provider-agnostic payment[[:space:]]*&[[:space:]]*escrow|get it delivered|platform delivery" public/index.html public/js/ui-shell.js
           grep -q "replaceText(n, 'Escrow protected', 'Protected payments')" public/js/launch-ready.js
           grep -q "Pick up or meet the owner. Record condition." public/js/launch-ready.js
