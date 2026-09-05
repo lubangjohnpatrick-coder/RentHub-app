@@ -10,10 +10,12 @@ const css = read('public/css/motion.css');
 const js = read('public/js/motion.js');
 const index = read('public/index.html');
 const sw = read('public/service-worker.js');
+const builder = read('server/build-assets.js');
 
-assert(index.includes('/css/motion.css'), 'Production shell must load motion.css');
-assert(index.includes('/js/motion.js'), 'Production shell must load motion.js');
-assert(sw.includes('/css/motion.css') && sw.includes('/js/motion.js'), 'PWA shell must cache motion assets');
+assert(index.includes('/dist/app.css'), 'Production shell must load bundled CSS');
+assert(index.includes('/dist/app.js'), 'Production shell must load bundled JS');
+assert(sw.includes('/dist/app.css') && sw.includes('/dist/app.js'), 'PWA shell must cache production bundles');
+assert(builder.includes("'css/motion.css'") && builder.includes("'js/motion.js'"), 'Motion sources must be included in the production bundle');
 assert(css.includes('prefers-reduced-motion:reduce'), 'Motion system must respect reduced-motion accessibility');
 assert(css.includes('@keyframes grhHeroRise'), 'Hero entrance animation must exist');
 assert(css.includes('@keyframes grhMapReveal'), 'Map transition must exist');
