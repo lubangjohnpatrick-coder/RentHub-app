@@ -101,8 +101,30 @@ app.use('/api/upload', require('./upload'));
 
 app.use(seo);
 
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const DIST_DIR = path.join(PUBLIC_DIR, 'dist');
 const setUtf8 = (res) => { const ct = res.getHeader('Content-Type') || ''; if (ct && !/charset/i.test(ct)) res.setHeader('Content-Type', ct + '; charset=utf-8'); };
-app.use(express.static(path.join(__dirname, '..', 'public'), {
+
+// Production bundles are precompressed during deployment. Prefer Brotli, then
+// gzip, while retaining an uncompressed fallback for local development.
+app.get(['/dist/app.css', '/dist/app.js'], (req, res, next) => {
+  const name = path.basename(req.path);
+  if (!['app.css', 'app.js'].includes(name)) return next();
+  const base = path.join(DIST_DIR, name);
+  if (!fs.existsSync(base)) return next();
+  const accept = String(req.get('accept-encoding') || '').toLowerCase();
+  let file = base;
+  let encoding = '';
+  if (accept.includes('br') && fs.existsSync(base + '.br')) { file = base + '.br'; encoding = 'br'; }
+  else if (accept.includes('gzip') && fs.existsSync(base + '.gz')) { file = base + '.gz'; encoding = 'gzip'; }
+  res.setHeader('Content-Type', name.endsWith('.css') ? 'text/css; charset=utf-8' : 'application/javascript; charset=utf-8');
+  res.setHeader('Vary', 'Accept-Encoding');
+  res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+  if (encoding) res.setHeader('Content-Encoding', encoding);
+  return res.sendFile(file);
+});
+
+app.use(express.static(PUBLIC_DIR, {
   etag: true,
   setHeaders: (res, filePath) => {
     if (/\.(html|css|js|json|svg)$/i.test(filePath)) setUtf8(res);
@@ -117,8 +139,8 @@ app.get('*', async (req, res, next) => {
   try {
     const p = (req.path || '/').split('?')[0].replace(/\/+$/, '') || '/';
     res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); if (PRIVATE_PATH.test(p)) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-    let r = prerender.routeFor(p); if (!r) r = await seo.listingRoute(p); if (!r) return res.sendFile(path.join(__dirname, '..', 'public', 'index.html')); if (r.noindex) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-    const shell = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8'); const url = prerender.CANON + p; const ogImage = r.ogImage || prerender.CANON + '/brand/gorenthive-mark.png';
+    let r = prerender.routeFor(p); if (!r) r = await seo.listingRoute(p); if (!r) return res.sendFile(path.join(PUBLIC_DIR, 'index.html')); if (r.noindex) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    const shell = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8'); const url = prerender.CANON + p; const ogImage = r.ogImage || prerender.CANON + '/brand/gorenthive-mark.png';
     const out = shell.replace(/<title>.*?<\/title>/, `<title>${r.title}</title>`).replace(/<meta name="description" content="[^"]*">/, `<meta name="description" content="${r.desc}">`).replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${url}">`).replace(/<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${url}">`).replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${r.title}">`).replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${r.desc}">`).replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${ogImage}">`).replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}">`).replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${r.desc}">`).replace(/<meta name="twitter:image" content="[^"]*">/, `<meta name="twitter:image" content="${ogImage}">`).replace(/(<main class="page" id="app"[^>]*>)/, `$1\n${r.noscript || ''}`);
     res.send(out);
   } catch (e) { next(e); }
