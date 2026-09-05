@@ -46,15 +46,20 @@ jobs:
           test -f supabase/migrations/2026-09-04-private-media.sql
           test -f supabase/migrations/2026-09-04-deployment-readiness.sql
           test -f supabase/migrations/2026-09-05-profile-saved-locations.sql
+          test -f supabase/migrations/2026-09-05-financial-integrity.sql
           grep -q "client_request_id" supabase/migrations/2026-09-04-deployment-readiness.sql
           grep -q "saved_locations" supabase/migrations/2026-09-05-profile-saved-locations.sql
           grep -q "profile-photos" supabase/migrations/2026-09-05-profile-saved-locations.sql
+          grep -q "settle_payment_credit" supabase/migrations/2026-09-05-financial-integrity.sql
+          grep -q "platform_min_fee', '0'" supabase/migrations/2026-09-05-financial-integrity.sql
+          grep -q "lalamove_enabled', '0'" supabase/migrations/2026-09-05-financial-integrity.sql
           grep -q "Coordinates cannot be edited manually" server/profile-location.js
           grep -q "MAX_GPS_ACCURACY_M = 100" server/profile-location.js
           grep -q "MAX_PIN_ADJUST_M = 200" server/profile-location.js
           grep -q "key: GATEWAY" render.yaml
           grep -q "value: paymongo" render.yaml
           grep -q "GoRentHive commission is deducted from owner earnings" server/booking-v2.js
+          grep -q "settle_payment_credit" server/paymongo-webhook.js
           grep -q "PAYMONGO_WEBHOOK_SECRET" server/paymongo-webhook.js
           grep -q "private://" server/upload.js
           grep -q "source !== 'gps'" server/location.js
@@ -66,13 +71,14 @@ jobs:
           grep -q "Protected payments" public/js/launch-ready.js
           ! grep -q "GATEWAY=sandbox" render.yaml
 
-      - name: UI, mobile and photography assertions
+      - name: UI, mobile, payment and photography assertions
         shell: bash
         run: |
           set -euo pipefail
           test -f public/css/experience.css
           test ! -f public/css/marketplace-preview.css
           test ! -f public/css/ux-polish.css
+          test -f public/js/payment-experience.js
           grep -q "hydrateMarketplacePreview" public/js/ui-shell.js
           grep -q "REAL LISTING" public/css/experience.css
           grep -q "API.get('/listings')" public/js/ui-shell.js
@@ -81,22 +87,31 @@ jobs:
           grep -q "grh-location-map" public/css/experience.css
           grep -q "grh-search-panel" public/css/experience.css
           grep -q "/css/experience.css" public/index.html
+          grep -q "/js/payment-experience.js" public/index.html
+          grep -q "booking_draft" public/js/payment-experience.js
+          grep -q "handlePayMongoCallbackV2" public/js/payment-experience.js
           grep -q "Confirm pin & save" public/js/profile-experience.js
 
-      - name: Security, media privacy and readiness assertions
+      - name: Security, listing privacy and readiness assertions
         shell: bash
         run: |
           set -euo pipefail
           test -f server/readiness.js
           test -f server/request-guard.js
           test -f server/seo.js
+          test -f server/listings-v2.js
+          test -f server/payment-v2.js
           test -f server/upload-sanitize-test.js
           grep -q "contentSecurityPolicy" server/index.js
           grep -q "scriptSrcAttr" server/index.js
+          grep -q "js.paymongo.com" server/index.js
+          grep -q "api.paymongo.com" server/index.js
           grep -q "Permissions-Policy" server/index.js
           grep -q "X-Request-ID" server/index.js
           grep -q "request-guard" server/index.js
           grep -q "require('./seo')" server/index.js
+          grep -q "require('./listings-v2')" server/index.js
+          grep -q "require('./payment-v2')" server/index.js
           grep -q "health/readiness" server/readiness.js
           grep -q "paymentLiveKey" server/readiness.js
           grep -q "smsVerificationSender" server/readiness.js
@@ -108,6 +123,11 @@ jobs:
           grep -q "stripWebpMetadata" server/upload.js
           grep -q "listingRoute" server/seo.js
           grep -q "listing_images" server/seo.js
+          ! grep -q "latitude: row.latitude" server/publicShape.js
+          ! grep -q "longitude: row.longitude" server/publicShape.js
+          grep -q "delivery_available: false" server/publicShape.js
+          grep -q "query = query.eq('category_id', category)" server/listings-v2.js
+          grep -q "This payment belongs to another account" server/payment-v2.js
           ! grep -qiE "escrow protected|provider-agnostic payment[[:space:]]*&[[:space:]]*escrow|get it delivered|platform delivery" public/index.html public/js/ui-shell.js
           grep -q "replaceText(n, 'Escrow protected', 'Protected payments')" public/js/launch-ready.js
           grep -q "Pick up or meet the owner. Record condition." public/js/launch-ready.js
@@ -120,9 +140,12 @@ jobs:
           const routers = [
             "require('./location')",
             "require('./profile-location')",
+            "require('./listings-v2')",
             "require('./booking-v2')",
             "require('./launch-hardening')",
             "require('./verification-v2')",
+            "require('./media')",
+            "require('./payment-v2')",
             "require('./financial')",
             "require('./private')"
           ].map((needle) => source.indexOf(needle));
