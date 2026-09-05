@@ -82,6 +82,7 @@ function main() {
     '/js/app.js',
     '/js/location-hardening.js',
     '/js/launch-ready.js',
+    '/js/payment-experience.js',
     '/js/private-media.js',
     '/js/legal-acceptance.js',
     '/js/ui-shell.js',
@@ -89,7 +90,7 @@ function main() {
   ];
   for (const asset of required) {
     assert(html.includes(asset), `index.html must load required production asset: ${asset}`);
-    if (!asset.includes('supabase-config')) assert(sw.includes(asset), `service-worker.js must cache production asset: ${asset}`);
+    assert(sw.includes(asset), `service-worker.js must cache production asset: ${asset}`);
   }
 
   assert((html.match(/<main\b/g) || []).length === 1, 'index.html should contain exactly one top-level <main>');
