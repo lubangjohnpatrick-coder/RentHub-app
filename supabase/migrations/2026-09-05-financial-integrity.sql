@@ -1,5 +1,21 @@
 -- GoRentHive production financial integrity hardening
 -- Apply after the earlier 2026-09-04/05 migrations.
+-- This migration is intentionally self-contained so its RPC definitions do not
+-- depend on a later migration being applied first.
+
+-- Schema compatibility required by the hardened payment server.
+alter table public.payments
+  add column if not exists provider_ref text;
+
+alter table public.security_deposits
+  add column if not exists created_at bigint not null default ((extract(epoch from now())*1000)::bigint);
+
+alter table public.payments drop constraint if exists payments_type_check;
+alter table public.payments add constraint payments_type_check check (
+  type in ('rental','deposit','refund','payout','platform_fee','featured','referral','withdrawal','topup','booking_pay')
+);
+
+create index if not exists payments_provider_ref_idx on public.payments(provider_ref);
 
 -- Current commercial policy: exactly 8% owner commission, no minimum fee,
 -- and no GoRentHive-operated delivery service.
@@ -130,9 +146,9 @@ begin
        jsonb_build_object('booking_ref', p_booking_ref)::text, ts);
 
     insert into public.security_deposits
-      (booking_id, renter_id, owner_id, amount, status)
+      (booking_id, renter_id, owner_id, amount, status, created_at)
     values
-      (p_booking_id, p_renter_id, p_owner_id, p_deposit_amount, 'held');
+      (p_booking_id, p_renter_id, p_owner_id, p_deposit_amount, 'held', ts);
   end if;
 
   update public.users
