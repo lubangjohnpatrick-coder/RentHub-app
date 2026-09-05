@@ -12,7 +12,8 @@
     "qa:uploads": "node server/upload-sanitize-test.js",
     "qa:verification": "node server/verification-provider-test.js",
     "qa:marketplace": "node server/marketplace-upgrades.test.js",
-    "qa": "npm run qa:syntax && npm run qa:assets && npm run qa:contracts && npm run qa:uploads && npm run qa:verification && npm run qa:marketplace",
+    "qa:marketplace-pro": "node server/marketplace-pro.test.js",
+    "qa": "npm run qa:syntax && npm run qa:assets && npm run qa:contracts && npm run qa:uploads && npm run qa:verification && npm run qa:marketplace && npm run qa:marketplace-pro",
     "mobile-test": "node server/mobiletest.js",
     "security-test": "node server/securitest.js",
     "dispute-test": "node server/disputetest.js",
@@ -38,13 +39,8 @@
     "@capacitor/core": "^6.2.2",
     "puppeteer-core": "^25.9.0"
   },
-  "overrides": {
-    "qs": "^6.16.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lubangjohnpatrick-coder/RentHub-app.git"
-  },
+  "overrides": { "qs": "^6.16.0" },
+  "repository": { "type": "git", "url": "git+https://github.com/lubangjohnpatrick-coder/RentHub-app.git" },
   "author": "",
   "type": "commonjs",
   "bugs": { "url": "https://github.com/lubangjohnpatrick-coder/RentHub-app/issues" },
