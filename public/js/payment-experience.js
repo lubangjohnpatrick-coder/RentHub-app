@@ -7,7 +7,7 @@
     return String(method || '').toLowerCase() === 'maya' ? 'paymaya' : 'gcash';
   }
 
-  Root.runPayMongoIntent = async function runPayMongoIntentV2(intent, kind) {
+  Root.runPayMongoIntent = async function runPayMongoIntentV2(intent) {
     try {
       const cfg = await API.get('/paymongo/config');
       if (!cfg.enabled || !cfg.publicKey) throw new Error('PayMongo is not ready for payments.');
@@ -34,6 +34,36 @@
     }
   };
 
+  // Wallet funding supports GCash and Maya. No sandbox/free credit fallback is
+  // allowed when the hardened PayMongo config says the gateway is unavailable.
+  Root.topUp = async function topUpV2() {
+    const amount = parseInt(document.getElementById('tp-amt')?.value || '0', 10);
+    const requested = String(document.getElementById('tp-method')?.value || 'gcash').toLowerCase();
+    const method = requested.includes('maya') ? 'maya' : 'gcash';
+    if (!amount || amount < 50) { this.toast('Enter an amount of at least ₱50', 'error'); return; }
+    try {
+      const cfg = await API.get('/paymongo/config');
+      if (!cfg.enabled) throw new Error('Online wallet funding is not available yet.');
+      const intent = await API.post('/wallet/paymongo/topup', { amount, method });
+      intent.method = method;
+      if (intent.sandbox) {
+        const confirmation = await API.post('/paymongo/confirm', { intent_id: intent.intent_id, payment_id: intent.payment_id });
+        if (confirmation.status !== 'succeeded') throw new Error('Payment did not settle.');
+        this.toast(`Wallet funded with ${fmtMoney(amount)}.`, 'success');
+        this.nav('/wallet');
+        return;
+      }
+      const result = await this.runPayMongoIntent(intent);
+      if (result.redirected) return;
+      if (result.paid) {
+        this.toast(`Wallet funded with ${fmtMoney(amount)}.`, 'success');
+        this.nav('/wallet');
+      }
+    } catch (e) {
+      this.toast(e.message || 'Could not start payment.', 'error');
+    }
+  };
+
   Root.tryPayBooking = async function tryPayBookingV2(total, bookBody) {
     try {
       const draft = bookBody && typeof bookBody === 'object' ? { ...bookBody } : null;
@@ -47,13 +77,9 @@
       }
       if (!confirm(`Your wallet needs ${fmtMoney(total)}. Continue to secure GCash payment?`)) return false;
 
-      const intent = await API.post('/bookings/paymongo', {
-        booking_draft: draft,
-        method: 'gcash',
-      });
+      const intent = await API.post('/bookings/paymongo', { booking_draft: draft, method: 'gcash' });
       intent.method = 'gcash';
 
-      // Non-production sandbox behavior remains available for local QA only.
       if (intent.sandbox) {
         const confirmation = await API.post('/paymongo/confirm', { intent_id: intent.intent_id, payment_id: intent.payment_id });
         if (confirmation.status !== 'succeeded') throw new Error('Sandbox payment did not settle.');
@@ -63,7 +89,7 @@
         return true;
       }
 
-      const result = await this.runPayMongoIntent(intent, 'booking');
+      const result = await this.runPayMongoIntent(intent);
       if (result.redirected) return true;
       if (!result.paid) return false;
 
