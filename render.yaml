@@ -3,6 +3,7 @@ services:
     name: gorenthive
     env: node
     plan: free
+    autoDeployTrigger: checksPass
     buildCommand: npm ci --omit=dev
     startCommand: node server/index.js
     healthCheckPath: /healthz
