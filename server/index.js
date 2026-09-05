@@ -20,8 +20,6 @@ function healthPath(req) {
   return /^\/health(?:z|\/|$)/.test(req.path || '');
 }
 
-// One public origin. Render's service hostname remains usable for health checks,
-// but normal production traffic is redirected to the canonical custom domain.
 app.use((req, res, next) => {
   const host = (req.get('host') || '').toLowerCase().replace(/:\d+$/, '');
   const forwardedProto = String(req.get('x-forwarded-proto') || req.protocol || '').toLowerCase();
@@ -41,10 +39,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// The SPA still uses inline style attributes and legacy inline event handlers.
-// CSP separates element and attribute policies: arbitrary inline <script>
-// elements are blocked, while legacy event attributes remain temporarily
-// permitted until the final event-delegation migration.
+// Inline script elements are blocked. Only legacy event-handler attributes are
+// temporarily permitted until the final event-delegation migration is complete.
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
@@ -54,16 +50,16 @@ app.use(helmet({
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
       formAction: ["'self'"],
-      scriptSrc: ["'self'", 'https://unpkg.com'],
-      scriptSrcElem: ["'self'", 'https://unpkg.com'],
+      scriptSrc: ["'self'", 'https://unpkg.com', 'https://js.paymongo.com'],
+      scriptSrcElem: ["'self'", 'https://unpkg.com', 'https://js.paymongo.com'],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
       styleSrcElem: ["'self'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
       styleSrcAttr: ["'unsafe-inline'"],
       fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co'],
-      frameSrc: ["'self'", 'https://checkout.paymongo.com'],
+      connectSrc: ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://api.paymongo.com'],
+      frameSrc: ["'self'", 'https://checkout.paymongo.com', 'https://*.paymongo.com'],
       workerSrc: ["'self'", 'blob:'],
       manifestSrc: ["'self'"],
       mediaSrc: ["'self'", 'blob:', 'https:'],
@@ -77,8 +73,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Request telemetry intentionally excludes request bodies, authorization
-// headers, exact GPS coordinates and personal data. Render captures stdout.
+// Request telemetry deliberately excludes bodies, authorization headers,
+// coordinates and personal data. Render captures stdout for operational review.
 app.use((req, res, next) => {
   const started = process.hrtime.bigint();
   res.on('finish', () => {
@@ -86,12 +82,8 @@ app.use((req, res, next) => {
     const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
     if (res.statusCode >= 400 || durationMs >= 1500) {
       console.log(JSON.stringify({
-        type: 'http',
-        request_id: req.requestId,
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        duration_ms: Math.round(durationMs),
+        type: 'http', request_id: req.requestId, method: req.method,
+        path: req.path, status: res.statusCode, duration_ms: Math.round(durationMs),
       }));
     }
   });
@@ -117,7 +109,7 @@ app.get('/healthz', (req, res) => {
 });
 app.use(require('./readiness'));
 
-// Order matters. Hardened compatibility routes MUST run before older routes.
+// Order matters. Hardened routes MUST run before older compatibility routes.
 app.use('/api', require('./no-delivery'));
 app.use('/api', require('./location'));
 app.use('/api', require('./profile-location'));
@@ -167,10 +159,10 @@ app.get('*', async (req, res, next) => {
     if (!r) return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
     if (r.noindex) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
 
-    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const shell = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
     const url = prerender.CANON + p;
     const ogImage = r.ogImage || prerender.CANON + '/icons/icon-512.png';
-    const out = html
+    const out = shell
       .replace(/<title>.*?<\/title>/, `<title>${r.title}</title>`)
       .replace(/<meta name="description" content="[^"]*">/, `<meta name="description" content="${r.desc}">`)
       .replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${url}">`)
@@ -178,7 +170,7 @@ app.get('*', async (req, res, next) => {
       .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${r.title}">`)
       .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${r.desc}">`)
       .replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${ogImage}">`)
-      .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}</title>`)
+      .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${r.title}">`)
       .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${r.desc}">`)
       .replace(/<meta name="twitter:image" content="[^"]*">/, `<meta name="twitter:image" content="${ogImage}">`)
       .replace(/(<main class="page" id="app"[^>]*>)/, `$1\n${r.noscript || ''}`);
