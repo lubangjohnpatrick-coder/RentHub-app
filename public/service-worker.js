@@ -1,5 +1,5 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v17-verification-otp-fix';
+const CACHE = 'gorenthive-v18-marketplace-trust-vehicle-upgrades';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -9,6 +9,7 @@ const APP_SHELL = [
   '/css/profile-experience.css',
   '/css/experience.css',
   '/css/brand-consistency.css',
+  '/css/marketplace-upgrades.css',
   '/js/vendor/supabase.js',
   '/js/supabase-config.js',
   '/js/api.js',
@@ -22,6 +23,7 @@ const APP_SHELL = [
   '/js/profile-experience.js',
   '/js/verification-experience.js',
   '/js/brand-consistency.js',
+  '/js/marketplace-upgrades.js',
   '/brand/gorenthive-mark.png',
   '/brand/gorenthive-wordmark.png',
   '/manifest.webmanifest',
