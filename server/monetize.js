@@ -1,10 +1,11 @@
 'use strict';
 
 // Monetization rules (GoRentHive):
-//  - Commission: 8% of rental fee, min 20 (see settings.computePlatformFee)
-//  - Premium membership: 1499/yr -> unlimited listings + seller dashboard
-//  - Free users: 15 active listings/month; extra = 10/listing (one-time)
-//  - Featured boost: 49 / 30 days, prioritised in search
+//  - Commission: 8% of the completed rental amount (see settings.computePlatformFee)
+//  - Free users: first 5 active listings; extra listings use the configured overage fee
+//  - Legacy Premium billing remains only for backwards compatibility while the
+//    new Pro (₱299/mo) and Business (₱999/mo) plans are labelled Coming Soon.
+//  - Featured boost: configured one-time fee / duration, prioritised in search.
 // Server only — service-role via Supabase. All charges debit the wallet ledger.
 
 const { svcClient } = require('./supabase');
@@ -24,27 +25,29 @@ async function isPremium(user) {
   return !!(user && user.premium_until && user.premium_until > NOW());
 }
 
-// Count active listings posted by a user in the current calendar month.
+// Historical function name retained for compatibility. The public plan is an
+// active-listing allowance, so count currently active inventory rather than
+// every listing created during a calendar month.
 async function countListingsThisMonth(userId) {
-  const start = new Date();
-  start.setUTCDate(1);
-  start.setUTCHours(0, 0, 0, 0);
   const { count, error } = await svcClient()
     .from('listings')
     .select('id', { count: 'exact', head: true })
     .eq('owner_id', userId)
-    .gte('created_at', start.getTime());
-  if (error) throw new Error('Count listings error: ' + error.message);
+    .eq('status', 'active');
+  if (error) throw new Error('Count active listings error: ' + error.message);
   return count || 0;
 }
 
-// Enforce free-plan cap on listing creation. Returns { allowed, over, fee }
-// If over the cap, the extra listings incur a one-time 10 each charged to wallet.
+// Charge only for the newly-added over-cap inventory. Without the incremental
+// calculation, an owner with six active listings would be charged again for
+// the sixth listing when creating the seventh.
 async function enforceListingCap(user, newCount = 1) {
   if (await isPremium(user)) return { allowed: true, over: 0, fee: 0 };
   const limit = await getFreeListingLimit();
   const current = await countListingsThisMonth(user.id);
-  const over = Math.max(0, current + newCount - limit);
+  const beforeOver = Math.max(0, current - limit);
+  const afterOver = Math.max(0, current + Math.max(1, Number(newCount) || 1) - limit);
+  const over = Math.max(0, afterOver - beforeOver);
   if (over === 0) return { allowed: true, over: 0, fee: 0 };
   const per = await getExtraListingFee();
   const fee = over * per;
@@ -52,7 +55,7 @@ async function enforceListingCap(user, newCount = 1) {
   if (bal < fee) {
     return {
       allowed: false, over, fee, insufficient: true,
-      error: `You've used your ${limit} free listings this month. ${over} extra listing(s) = ₱${fee}. Add funds to continue.`,
+      error: `Your ${limit} free active listings are already in use. ${over} additional listing(s) = ₱${fee}. Add funds to continue.`,
     };
   }
   return { allowed: true, over, fee, insufficient: false };
@@ -66,7 +69,9 @@ async function chargeListingOverage(user, over) {
   await revenue.addIncome('extra_listing', fee);
 }
 
-// Buy / renew premium membership (charge wallet, extend premium_until by 365 days).
+// Legacy purchase path retained for existing premium accounts only. A release
+// guard mounted before the private compatibility routes rejects new purchases
+// while the new Pro/Business plan contracts remain Coming Soon.
 async function purchasePremium(user) {
   const fee = await getPremiumFee();
   const bal = await getUserBalance(user.id);
@@ -81,7 +86,6 @@ async function purchasePremium(user) {
   return { ok: true, premium_until, fee };
 }
 
-// Boost a listing to featured for 30 days (charge wallet, set featured flags, log).
 async function boostListing(user, listingId) {
   const { data: l, error } = await svcClient().from('listings').select('owner_id,id').eq('id', listingId).single();
   if (error || !l) return { ok: false, error: 'Listing not found' };
@@ -105,7 +109,6 @@ async function boostListing(user, listingId) {
   return { ok: true, fee, ends_at: endsAt };
 }
 
-// Seller dashboard: listings, sales (completed bookings), gross income, business summary.
 async function sellerDashboard(user) {
   const { data: listings, error: lErr } = await svcClient()
     .from('listings').select('*').eq('owner_id', user.id).order('created_at', { ascending: false });

@@ -39,9 +39,10 @@ async function getPlatformRate() {
   return { percent, minFee: 0 };
 }
 
-// Free-plan monthly active-listing cap (premium = unlimited).
+// Free-plan active-listing cap. Public plan promise: first five active listings
+// are free; additional listings use the configured one-time overage fee.
 async function getFreeListingLimit() {
-  return parseInt(await getSetting('free_listing_limit', '15'), 10) || 15;
+  return parseInt(await getSetting('free_listing_limit', '5'), 10) || 5;
 }
 
 // One-time fee per extra listing posted while over the free cap.
@@ -49,7 +50,9 @@ async function getExtraListingFee() {
   return parseInt(await getSetting('extra_listing_fee', '10'), 10) || 10;
 }
 
-// Premium membership yearly fee in pesos.
+// Legacy premium price retained only for existing accounts/compatibility.
+// New Pro and Business plans are publicly labelled Coming Soon until their
+// complete feature/billing contracts are production-ready.
 async function getPremiumFee() {
   return parseInt(await getSetting('premium_fee', '1499'), 10) || 1499;
 }

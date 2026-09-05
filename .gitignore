@@ -13,8 +13,9 @@ node_modules/
 
 # Build outputs
 /dist/
+/public/dist/
 /build/
-/coverage/
+coverage/
 /android/.gradle/
 /android/app/build/
 

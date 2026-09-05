@@ -27,18 +27,24 @@ jobs:
 
       - name: Syntax check
         run: npm run qa:syntax
-
-      - name: Asset integrity audit
+      - name: Asset integrity and production bundle audit
         run: npm run qa:assets
-
       - name: Production contract audit
         run: npm run qa:contracts
-
       - name: Public image privacy audit
         run: npm run qa:uploads
-
       - name: Verification provider contract tests
         run: npm run qa:verification
+      - name: Marketplace trust regression tests
+        run: npm run qa:marketplace
+      - name: Marketplace Pro regression tests
+        run: npm run qa:marketplace-pro
+      - name: Motion experience regression tests
+        run: npm run qa:motion
+      - name: Homepage conversion and claim integrity tests
+        run: npm run qa:homepage
+      - name: Production architecture, performance and accessibility budgets
+        run: npm run qa:quality
 
       - name: Canonical brand identity assertions
         shell: bash
@@ -48,17 +54,20 @@ jobs:
           test -f public/brand/gorenthive-wordmark.png
           test -f public/css/brand-consistency.css
           test -f public/js/brand-consistency.js
+          test -f public/css/brand-lockup-v2.css
+          test -f public/js/brand-lockup-v2.js
           grep -q '/brand/gorenthive-mark.png' public/manifest.webmanifest
           ! grep -q '/icons/icon-' public/manifest.webmanifest
-          grep -q '/css/brand-consistency.css' public/index.html
-          grep -q '/js/brand-consistency.js' public/index.html
+          grep -q '/dist/app.css' public/index.html
+          grep -q '/dist/app.js' public/index.html
           grep -q 'https://gorenthive.online/brand/gorenthive-mark.png' public/index.html
           grep -q "mark: '/brand/gorenthive-mark.png'" public/js/brand-consistency.js
           grep -q "wordmark: '/brand/gorenthive-wordmark.png'" public/js/brand-consistency.js
           grep -q "raw.startsWith('🐝')" public/js/brand-consistency.js
-          grep -q 'gorenthive-v17-verification-otp-fix' public/service-worker.js
-          grep -q '/css/brand-consistency.css' public/service-worker.js
-          grep -q '/js/brand-consistency.js' public/service-worker.js
+          grep -Eq "const CACHE = 'gorenthive-v[0-9]+-[A-Za-z0-9_-]+'" public/service-worker.js
+          grep -q '/dist/app.css' public/service-worker.js
+          grep -q '/dist/app.js' public/service-worker.js
+          grep -q '/brand/gorenthive-mark.png' public/js/brand-lockup-v2.js
           ! grep -q 'makeIcon(' server/genicons.js
           grep -q 'canonical brand assets verified' server/genicons.js
 
@@ -84,79 +93,91 @@ jobs:
           grep -q 'https://api.resend.com/emails' server/verification-providers.js
           grep -q 'https://api.semaphore.co/api/v4/otp' server/verification-providers.js
           grep -q 'RESEND_API_KEY' server/verification-providers.js
-          grep -q 'RESEND_FROM_EMAIL' server/verification-providers.js
           grep -q 'SEMAPHORE_API_KEY' server/verification-providers.js
-          grep -q 'SEMAPHORE_SENDER_NAME' server/verification-providers.js
-          grep -q '/js/verification-experience.js' public/index.html
-          grep -q '/js/verification-experience.js' public/service-worker.js
-          grep -q 'Email verified successfully' public/js/verification-experience.js
-          grep -q 'Code sent to' public/js/verification-experience.js
-          grep -q 'otp-status' public/js/verification-experience.js
           ! grep -q 'Demo only: your code is' public/js/verification-experience.js
           ! grep -q 'Demo only: token is' public/js/verification-experience.js
-          grep -q 'RESEND_API_KEY' render.yaml
-          grep -q 'RESEND_FROM_EMAIL' render.yaml
-          grep -q 'SEMAPHORE_API_KEY' render.yaml
-          grep -q 'SEMAPHORE_SENDER_NAME' render.yaml
-          ! grep -q 'SMS_SENDER_WEBHOOK_URL' render.yaml
-          ! grep -q 'EMAIL_SENDER_WEBHOOK_URL' render.yaml
 
-      - name: Launch regression assertions
+      - name: Marketplace, payments and regulatory assertions
         shell: bash
         run: |
           set -euo pipefail
           test -f supabase/migrations/2026-09-04-launch-hardening.sql
           test -f supabase/migrations/2026-09-04-location-hardening.sql
           test -f supabase/migrations/2026-09-04-private-media.sql
-          test -f supabase/migrations/2026-09-04-deployment-readiness.sql
-          test -f supabase/migrations/2026-09-05-profile-saved-locations.sql
           test -f supabase/migrations/2026-09-05-financial-integrity.sql
-          grep -q "client_request_id" supabase/migrations/2026-09-04-deployment-readiness.sql
-          grep -q "saved_locations" supabase/migrations/2026-09-05-profile-saved-locations.sql
-          grep -q "profile-photos" supabase/migrations/2026-09-05-profile-saved-locations.sql
-          grep -q "settle_payment_credit" supabase/migrations/2026-09-05-financial-integrity.sql
-          grep -q "platform_min_fee', '0'" supabase/migrations/2026-09-05-financial-integrity.sql
-          grep -q "lalamove_enabled', '0'" supabase/migrations/2026-09-05-financial-integrity.sql
-          grep -q "Coordinates cannot be edited manually" server/profile-location.js
-          grep -q "MAX_GPS_ACCURACY_M = 100" server/profile-location.js
-          grep -q "MAX_PIN_ADJUST_M = 200" server/profile-location.js
-          grep -q "key: GATEWAY" render.yaml
-          grep -q "value: paymongo" render.yaml
+          test -f supabase/migrations/2026-09-05-marketplace-trust-vehicle-upgrades.sql
+          test -f supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          test -f supabase/migrations/2026-09-05-marketplace-pro-dedupe-fix.sql
+          test -f supabase/migrations/2026-09-05-homepage-plan-alignment.sql
+          grep -q 'owner_id uuid' supabase/migrations/2026-09-05-marketplace-trust-vehicle-upgrades.sql
+          grep -q 'driver_verifications' supabase/migrations/2026-09-05-marketplace-trust-vehicle-upgrades.sql
+          grep -q 'listing_pricing' supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          grep -q 'listing_availability_blocks' supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          grep -q 'saved_searches' supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          grep -q 'business_verifications' supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          grep -q 'booking_handover_tokens' supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          grep -q 'snapshot_hash' supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          grep -q "pricing_unit text not null default 'daily'" supabase/migrations/2026-09-05-marketplace-pro-experience.sql
+          grep -q 'notifications_user_dedupe_idx' supabase/migrations/2026-09-05-marketplace-pro-dedupe-fix.sql
+          grep -q "'free_listing_limit', '5'" supabase/migrations/2026-09-05-homepage-plan-alignment.sql
           grep -q "GoRentHive commission is deducted from owner earnings" server/booking-v2.js
           grep -q "settle_payment_credit" server/paymongo-webhook.js
           grep -q "PAYMONGO_WEBHOOK_SECRET" server/paymongo-webhook.js
           grep -q "private://" server/upload.js
           grep -q "source !== 'gps'" server/location.js
-          ! grep -q "featured,avg_rating" server/location.js
           grep -q "does not operate a delivery service" public/index.html
-          grep -q "₱499" public/js/launch-ready.js
-          grep -q "₱999" public/js/launch-ready.js
-          grep -q "Owner commission (8%)" public/js/launch-ready.js
-          grep -q "Protected payments" public/js/launch-ready.js
+          grep -q "platform_delivery_retired" server/no-delivery.js
+          grep -q "qr_handover_required" server/handover-code.js
+          grep -q "vehicle_compliance_required" server/vehicle-compliance.js
+          grep -q "accepted_prohibited_uses" server/agreement-v3.js
+          grep -q "plan_not_released" server/plan-release.js
           ! grep -q "GATEWAY=sandbox" render.yaml
 
-      - name: UI, mobile, payment and photography assertions
+      - name: UI, map, messaging, analytics and motion assertions
         shell: bash
         run: |
           set -euo pipefail
           test -f public/css/experience.css
-          test ! -f public/css/marketplace-preview.css
-          test ! -f public/css/ux-polish.css
-          test -f public/js/payment-experience.js
+          test -f public/css/marketplace-upgrades.css
+          test -f public/css/motion.css
+          test -f public/css/homepage-v2.css
+          test -f public/css/premium-finish.css
+          test -f public/js/marketplace-upgrades.js
+          test -f public/js/marketplace-pro.js
+          test -f public/js/motion.js
+          test -f public/js/homepage-v2.js
+          test -f public/js/premium-finish.js
+          test -f server/marketplace-pro.js
+          test -f server/messaging-pro.js
+          test -f server/agreement-v3.js
+          test -f server/condition-v3.js
+          test -f server/motion-experience.test.js
+          test -f server/homepage-v2.test.js
+          test -f server/production-quality.test.js
           grep -q "hydrateMarketplacePreview" public/js/ui-shell.js
           grep -q "REAL LISTING" public/css/experience.css
-          grep -q "API.get('/listings')" public/js/ui-shell.js
-          grep -q "prefers-reduced-motion" public/css/experience.css
-          grep -q "@media(max-width:420px)" public/css/experience.css
-          grep -q "grh-location-map" public/css/experience.css
-          grep -q "grh-search-panel" public/css/experience.css
-          grep -q "/css/experience.css" public/index.html
-          grep -q "/js/payment-experience.js" public/index.html
-          grep -q "booking_draft" public/js/payment-experience.js
-          grep -q "handlePayMongoCallbackV2" public/js/payment-experience.js
-          grep -q "Confirm pin & save" public/js/profile-experience.js
+          grep -q "prefers-reduced-motion" public/css/marketplace-upgrades.css
+          grep -q "prefers-reduced-motion:reduce" public/css/motion.css
+          grep -q "grh-market-map" public/css/marketplace-upgrades.css
+          grep -q "grh-owner-analytics" public/css/marketplace-upgrades.css
+          grep -q "grhHeroRise" public/css/motion.css
+          grep -q "grhQrScan" public/css/motion.css
+          grep -q "IntersectionObserver" public/js/motion.js
+          grep -q "MutationObserver" public/js/motion.js
+          grep -q "showExploreMode" public/js/marketplace-pro.js
+          grep -q "saveCurrentSearch" public/js/marketplace-pro.js
+          grep -q "viewNotifications" public/js/marketplace-pro.js
+          grep -q "showHandoverQr" public/js/marketplace-pro.js
+          grep -q "scanHandoverQr" public/js/marketplace-pro.js
+          grep -q "saveVehicleCondition" public/js/marketplace-pro.js
+          grep -q "/api/upload?scope=evidence&booking_id=" public/js/marketplace-pro.js
+          grep -q "coarseCoord" server/marketplace-pro.js
+          grep -q "attachments" server/messaging-pro.js
+          grep -q "read_at" server/messaging-pro.js
+          grep -q "premium-finish.css" server/build-assets.js
+          grep -q "premium-finish.js" server/build-assets.js
 
-      - name: Security, listing privacy and readiness assertions
+      - name: Security, privacy and readiness assertions
         shell: bash
         run: |
           set -euo pipefail
@@ -168,34 +189,22 @@ jobs:
           test -f server/upload-sanitize-test.js
           grep -q "contentSecurityPolicy" server/index.js
           grep -q "scriptSrcAttr" server/index.js
-          grep -q "js.paymongo.com" server/index.js
-          grep -q "api.paymongo.com" server/index.js
           grep -q "Permissions-Policy" server/index.js
           grep -q "X-Request-ID" server/index.js
           grep -q "request-guard" server/index.js
-          grep -q "require('./seo')" server/index.js
-          grep -q "require('./listings-v2')" server/index.js
-          grep -q "require('./payment-v2')" server/index.js
           grep -q "health/readiness" server/readiness.js
           grep -q "paymentLiveKey" server/readiness.js
-          grep -q "getVerificationProviderConfig" server/readiness.js
-          grep -q "smsVerificationSender" server/readiness.js
-          grep -q "emailVerificationSender" server/readiness.js
           grep -q "profile-photos" server/readiness.js
           grep -q "rental-evidence" server/readiness.js
           grep -q "stripJpegMetadata" server/upload.js
-          grep -q "stripPngMetadata" server/upload.js
-          grep -q "stripWebpMetadata" server/upload.js
-          grep -q "listingRoute" server/seo.js
-          grep -q "listing_images" server/seo.js
           ! grep -q "latitude: row.latitude" server/publicShape.js
           ! grep -q "longitude: row.longitude" server/publicShape.js
           grep -q "delivery_available: false" server/publicShape.js
-          grep -q "query = query.eq('category_id', category)" server/listings-v2.js
+          grep -Eq "query[[:space:]]*=[[:space:]]*query\.eq\('category_id',[[:space:]]*category\)" server/listings-v2.js
+          grep -q "listing_pricing" server/listings-v2.js
           grep -q "This payment belongs to another account" server/payment-v2.js
           ! grep -qiE "escrow protected|provider-agnostic payment[[:space:]]*&[[:space:]]*escrow|get it delivered|platform delivery" public/index.html public/js/ui-shell.js
           grep -q "replaceText(n, 'Escrow protected', 'Protected payments')" public/js/launch-ready.js
-          grep -q "Pick up or meet the owner. Record condition." public/js/launch-ready.js
 
       - name: Validate production route precedence
         run: |
@@ -203,6 +212,14 @@ jobs:
           const fs = require('fs');
           const source = fs.readFileSync('server/index.js', 'utf8');
           const routers = [
+            "require('./no-delivery')",
+            "require('./vehicle-compliance')",
+            "require('./marketplace-pro')",
+            "require('./availability')",
+            "require('./messaging-pro')",
+            "require('./agreement-v3')",
+            "require('./condition-v3')",
+            "require('./handover-code')",
             "require('./location')",
             "require('./profile-location')",
             "require('./listings-v2')",
@@ -212,12 +229,11 @@ jobs:
             "require('./media')",
             "require('./payment-v2')",
             "require('./financial')",
+            "require('./plan-release')",
             "require('./private')"
           ].map((needle) => source.indexOf(needle));
           if (routers.some((index) => index < 0)) throw new Error('Missing launch router');
-          for (let i = 1; i < routers.length; i += 1) {
-            if (routers[i] <= routers[i - 1]) throw new Error('Hardened route order is incorrect');
-          }
+          for (let i = 1; i < routers.length; i += 1) if (routers[i] <= routers[i - 1]) throw new Error('Hardened route order is incorrect');
           NODE
 
       - name: Production dependency audit

@@ -55,6 +55,9 @@
     if (!el) return;
     el.classList.add('brand-refresh', 'grh-brand');
     el.setAttribute('aria-label', 'GoRentHive home');
+    // The final aesthetic layer intentionally uses the official mark plus live
+    // typography on auth screens so a white-backed wordmark PNG is never shown.
+    if (el.classList.contains('grh-auth-identity') && el.querySelector('.grh-brand-lockup')) return;
     const current = el.querySelector('img.grh-wordmark');
     if (!current || current.getAttribute('src') !== BRAND.wordmark || el.querySelector('.logo')) {
       el.innerHTML = wordmark();

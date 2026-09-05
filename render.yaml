@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     autoDeployTrigger: checksPass
-    buildCommand: npm ci --omit=dev
+    buildCommand: npm ci --omit=dev && npm run build:assets
     startCommand: node server/index.js
     healthCheckPath: /healthz
     envVars:
