@@ -3,9 +3,9 @@
 // Server auth middleware. The browser sends its Supabase access token
 // (JWT) in the Authorization header. We verify it with Supabase and load the
 // matching public.users row via the service-role client, then attach it to req.user.
-// Supabase Auth is the source of truth for email confirmation. We reconcile
-// that confirmation (plus signup phone/city metadata) into public.users so the
-// marketplace verification UI cannot remain stale after a user confirms email.
+// Supabase Auth may also provide explicit email-confirmation evidence. We only
+// mirror that status when a confirmation was actually sent; projects with email
+// confirmation disabled must not silently turn every signup into a verified email.
 
 const { svcClient, verifyToken } = require('./supabase');
 
@@ -22,19 +22,17 @@ function cleanText(value) {
 
 async function reconcileAuthProfile(authUser, profile) {
   if (!authUser || !profile) return profile;
-  let changed = false;
 
-  // Email confirmation happens inside Supabase Auth. Mirror it into the
-  // marketplace profile whenever an authenticated request proves it is done.
-  if (authUser.email_confirmed_at && !profile.email_verified) {
+  // A non-null email_confirmed_at is not enough on its own: Supabase projects
+  // with "Confirm email" disabled can mark a signup confirmed immediately.
+  // confirmation_sent_at proves that an actual confirmation challenge existed.
+  const explicitlyConfirmedEmail = !!(authUser.email_confirmed_at && authUser.confirmation_sent_at);
+  if (explicitlyConfirmedEmail && !profile.email_verified) {
     const { error } = await svcClient().from('users').update({
       email_verified: true,
       updated_at: Date.now(),
     }).eq('id', profile.id);
-    if (!error) {
-      profile.email_verified = true;
-      changed = true;
-    }
+    if (!error) profile.email_verified = true;
   }
 
   // Registration stores phone/city in Supabase user metadata. Older versions
@@ -50,13 +48,10 @@ async function reconcileAuthProfile(authUser, profile) {
   if (Object.keys(patch).length) {
     patch.updated_at = Date.now();
     const { error } = await svcClient().from('users').update(patch).eq('id', profile.id);
-    if (!error) {
-      Object.assign(profile, patch);
-      changed = true;
-    }
+    if (!error) Object.assign(profile, patch);
   }
 
-  return changed ? profile : profile;
+  return profile;
 }
 
 async function requireAuth(req, res, next) {
