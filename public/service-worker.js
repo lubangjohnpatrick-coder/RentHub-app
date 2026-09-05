@@ -1,9 +1,9 @@
 /* GoRentHive service worker — network-first app code, cache-first static media. */
-const CACHE = 'gorenthive-v19-marketplace-pro';
+const CACHE = 'gorenthive-v20-motion-experience';
 const APP_SHELL = [
   '/', '/index.html',
-  '/css/styles.css', '/css/launch-ready.css', '/css/app-theme.css', '/css/profile-experience.css', '/css/experience.css', '/css/brand-consistency.css', '/css/marketplace-upgrades.css',
-  '/js/vendor/supabase.js', '/js/supabase-config.js', '/js/api.js', '/js/app.js', '/js/location-hardening.js', '/js/launch-ready.js', '/js/payment-experience.js', '/js/private-media.js', '/js/legal-acceptance.js', '/js/ui-shell.js', '/js/profile-experience.js', '/js/verification-experience.js', '/js/brand-consistency.js', '/js/marketplace-upgrades.js', '/js/marketplace-pro.js',
+  '/css/styles.css', '/css/launch-ready.css', '/css/app-theme.css', '/css/profile-experience.css', '/css/experience.css', '/css/brand-consistency.css', '/css/marketplace-upgrades.css', '/css/motion.css',
+  '/js/vendor/supabase.js', '/js/supabase-config.js', '/js/api.js', '/js/app.js', '/js/location-hardening.js', '/js/launch-ready.js', '/js/payment-experience.js', '/js/private-media.js', '/js/legal-acceptance.js', '/js/ui-shell.js', '/js/profile-experience.js', '/js/verification-experience.js', '/js/brand-consistency.js', '/js/marketplace-upgrades.js', '/js/marketplace-pro.js', '/js/motion.js',
   '/brand/gorenthive-mark.png', '/brand/gorenthive-wordmark.png', '/manifest.webmanifest',
 ];
 self.addEventListener('install',(event)=>{event.waitUntil(caches.open(CACHE).then((cache)=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting()));});
