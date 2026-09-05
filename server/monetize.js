@@ -25,24 +25,29 @@ async function isPremium(user) {
   return !!(user && user.premium_until && user.premium_until > NOW());
 }
 
+// Historical function name retained for compatibility. The public plan is an
+// active-listing allowance, so count currently active inventory rather than
+// every listing created during a calendar month.
 async function countListingsThisMonth(userId) {
-  const start = new Date();
-  start.setUTCDate(1);
-  start.setUTCHours(0, 0, 0, 0);
   const { count, error } = await svcClient()
     .from('listings')
     .select('id', { count: 'exact', head: true })
     .eq('owner_id', userId)
-    .gte('created_at', start.getTime());
-  if (error) throw new Error('Count listings error: ' + error.message);
+    .eq('status', 'active');
+  if (error) throw new Error('Count active listings error: ' + error.message);
   return count || 0;
 }
 
+// Charge only for the newly-added over-cap inventory. Without the incremental
+// calculation, an owner with six active listings would be charged again for
+// the sixth listing when creating the seventh.
 async function enforceListingCap(user, newCount = 1) {
   if (await isPremium(user)) return { allowed: true, over: 0, fee: 0 };
   const limit = await getFreeListingLimit();
   const current = await countListingsThisMonth(user.id);
-  const over = Math.max(0, current + newCount - limit);
+  const beforeOver = Math.max(0, current - limit);
+  const afterOver = Math.max(0, current + Math.max(1, Number(newCount) || 1) - limit);
+  const over = Math.max(0, afterOver - beforeOver);
   if (over === 0) return { allowed: true, over: 0, fee: 0 };
   const per = await getExtraListingFee();
   const fee = over * per;
@@ -50,7 +55,7 @@ async function enforceListingCap(user, newCount = 1) {
   if (bal < fee) {
     return {
       allowed: false, over, fee, insufficient: true,
-      error: `You've used your ${limit} free listings this month. ${over} extra listing(s) = ₱${fee}. Add funds to continue.`,
+      error: `Your ${limit} free active listings are already in use. ${over} additional listing(s) = ₱${fee}. Add funds to continue.`,
     };
   }
   return { allowed: true, over, fee, insufficient: false };
@@ -64,9 +69,9 @@ async function chargeListingOverage(user, over) {
   await revenue.addIncome('extra_listing', fee);
 }
 
-// Legacy purchase path retained for existing premium accounts only. The public
-// UI does not sell this product while the new Pro/Business plan contracts are
-// marked Coming Soon.
+// Legacy purchase path retained for existing premium accounts only. A release
+// guard mounted before the private compatibility routes rejects new purchases
+// while the new Pro/Business plan contracts remain Coming Soon.
 async function purchasePremium(user) {
   const fee = await getPremiumFee();
   const bal = await getUserBalance(user.id);
